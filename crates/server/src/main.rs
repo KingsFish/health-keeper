@@ -234,10 +234,9 @@ async fn delete_person(
 
 async fn list_visits(
     State(state): State<Arc<AppState>>,
-    Query(params): Query<Option<VisitQueryParams>>,
+    Query(params): Query<VisitQueryParams>,
 ) -> Json<Vec<VisitResponse>> {
-    let person_id = params.and_then(|p| p.person_id);
-    let visits = state.storage.list_visits(person_id.as_deref()).await.unwrap_or_default();
+    let visits = state.storage.list_visits(params.person_id.as_deref()).await.unwrap_or_default();
 
     let mut responses = Vec::new();
     for v in visits {
