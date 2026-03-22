@@ -29,7 +29,7 @@
                     搜索
                 </button>
                 <button onclick="toggleFilters()" class="border px-4 py-2 rounded-lg hover:bg-gray-50">
-                    <span id="filterToggleText">显示筛选</span>
+                    <span id="filterToggleText">高级筛选</span>
                 </button>
             </div>
             <!-- Filters -->
@@ -46,7 +46,9 @@
                 </div>
                 <div>
                     <label class="block text-sm text-gray-600 mb-1">医生</label>
-                    <input type="text" id="filterDoctor" placeholder="输入医生姓名" class="w-full border rounded-lg px-3 py-2">
+                    <select id="filterDoctor" class="w-full border rounded-lg px-3 py-2">
+                        <option value="">全部医生</option>
+                    </select>
                 </div>
             </div>
         </div>
@@ -227,6 +229,7 @@
     <script>
         const API = '';
         let persons = [];
+        let doctors = [];
         let currentVisitId = null;
         let uploadedAttachments = []; // 保存已上传的附件信息
 
@@ -253,6 +256,15 @@
             const url = personId ? `/api/visits?person_id=${personId}` : '/api/visits';
             const visits = await fetchAPI(url);
             renderVisits(visits);
+
+            // Extract unique doctors from visits
+            const doctorSet = new Set();
+            visits.forEach(v => {
+                if (v.doctor) {
+                    doctorSet.add(v.doctor);
+                }
+            });
+            doctors = Array.from(doctorSet).sort();
         }
 
         // ==================== Render ====================
@@ -650,7 +662,7 @@
             const query = document.getElementById('searchInput').value.trim();
             const personId = document.getElementById('filterPerson').value;
             const hospital = document.getElementById('filterHospital').value.trim();
-            const doctor = document.getElementById('filterDoctor').value.trim();
+            const doctor = document.getElementById('filterDoctor').value;
 
             // Build query string
             const params = new URLSearchParams();
@@ -676,9 +688,10 @@
                 panel.classList.remove('hidden');
                 text.textContent = '隐藏筛选';
                 updateFilterPersonSelect();
+                updateFilterDoctorSelect();
             } else {
                 panel.classList.add('hidden');
-                text.textContent = '显示筛选';
+                text.textContent = '高级筛选';
             }
         }
 
@@ -689,6 +702,17 @@
                 const option = document.createElement('option');
                 option.value = p.id;
                 option.textContent = p.name;
+                select.appendChild(option);
+            });
+        }
+
+        function updateFilterDoctorSelect() {
+            const select = document.getElementById('filterDoctor');
+            select.innerHTML = '<option value="">全部医生</option>';
+            doctors.forEach(d => {
+                const option = document.createElement('option');
+                option.value = d;
+                option.textContent = d;
                 select.appendChild(option);
             });
         }
