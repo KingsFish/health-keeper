@@ -316,6 +316,13 @@ impl Storage for SqliteStorage {
     async fn create_attachment(&self, attachment: &Attachment) -> Result<String, StorageError> {
         let id = attachment.id.clone();
 
+        // Handle empty visit_id as NULL
+        let visit_id = if attachment.visit_id.is_empty() {
+            None
+        } else {
+            Some(&attachment.visit_id)
+        };
+
         sqlx::query(
             r#"
             INSERT INTO attachments (id, visit_id, type, file_path, file_hash, file_size, mime_type, original_filename, created_at)
@@ -323,7 +330,7 @@ impl Storage for SqliteStorage {
             "#,
         )
         .bind(&id)
-        .bind(&attachment.visit_id)
+        .bind(visit_id)
         .bind(attachment.attachment_type.to_string())
         .bind(&attachment.file_path)
         .bind(&attachment.file_hash)
