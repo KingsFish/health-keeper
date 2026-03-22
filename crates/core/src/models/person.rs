@@ -154,3 +154,99 @@ impl PersonBuilder {
         Ok(person)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_person_new() {
+        let person = Person::new("张三".to_string(), Relationship::Self_);
+
+        assert_eq!(person.name, "张三");
+        assert_eq!(person.relationship, Relationship::Self_);
+        assert!(person.id.len() > 0);
+        assert!(person.birth_date.is_none());
+        assert!(person.gender.is_none());
+        assert!(person.blood_type.is_none());
+        assert!(person.allergies.is_none());
+        assert!(person.notes.is_none());
+    }
+
+    #[test]
+    fn test_person_with_methods() {
+        let birth_date = NaiveDate::from_ymd_opt(1990, 1, 15).unwrap();
+
+        let person = Person::new("张三".to_string(), Relationship::Self_)
+            .with_birth_date(birth_date)
+            .with_gender(Gender::Male)
+            .with_blood_type(BloodType::A)
+            .with_allergies(vec!["花生".to_string(), "海鲜".to_string()])
+            .with_notes("测试备注".to_string());
+
+        assert_eq!(person.birth_date, Some(birth_date));
+        assert_eq!(person.gender, Some(Gender::Male));
+        assert_eq!(person.blood_type, Some(BloodType::A));
+        assert_eq!(person.allergies, Some(vec!["花生".to_string(), "海鲜".to_string()]));
+        assert_eq!(person.notes, Some("测试备注".to_string()));
+    }
+
+    #[test]
+    fn test_person_serde() {
+        let person = Person::new("张三".to_string(), Relationship::Spouse);
+
+        let json = serde_json::to_string(&person).unwrap();
+        assert!(json.contains("\"name\":\"张三\""));
+        assert!(json.contains("\"relationship\":\"spouse\""));
+
+        let parsed: Person = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.name, person.name);
+        assert_eq!(parsed.relationship, person.relationship);
+        assert_eq!(parsed.id, person.id);
+    }
+
+    #[test]
+    fn test_person_builder_success() {
+        let birth_date = NaiveDate::from_ymd_opt(1985, 6, 20).unwrap();
+
+        let person = PersonBuilder::new()
+            .name("李四")
+            .relationship(Relationship::Parent)
+            .birth_date(birth_date)
+            .gender(Gender::Female)
+            .blood_type(BloodType::O)
+            .allergy("青霉素")
+            .allergy("阿司匹林")
+            .notes("有药物过敏史")
+            .build()
+            .unwrap();
+
+        assert_eq!(person.name, "李四");
+        assert_eq!(person.relationship, Relationship::Parent);
+        assert_eq!(person.birth_date, Some(birth_date));
+        assert_eq!(person.gender, Some(Gender::Female));
+        assert_eq!(person.blood_type, Some(BloodType::O));
+        assert_eq!(person.allergies, Some(vec!["青霉素".to_string(), "阿司匹林".to_string()]));
+        assert_eq!(person.notes, Some("有药物过敏史".to_string()));
+    }
+
+    #[test]
+    fn test_person_builder_missing_name() {
+        let result = PersonBuilder::new()
+            .relationship(Relationship::Self_)
+            .build();
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Name is required");
+    }
+
+    #[test]
+    fn test_person_builder_default_relationship() {
+        let person = PersonBuilder::new()
+            .name("王五")
+            .build()
+            .unwrap();
+
+        assert_eq!(person.relationship, Relationship::Self_);
+    }
+}

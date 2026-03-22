@@ -208,3 +208,107 @@ impl VisitBuilder {
         Ok(visit)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_visit_new() {
+        let visit_date = NaiveDate::from_ymd_opt(2026, 3, 22).unwrap();
+        let visit = Visit::new("person-123".to_string(), visit_date);
+
+        assert_eq!(visit.person_id, "person-123");
+        assert_eq!(visit.visit_date, visit_date);
+        assert!(visit.id.len() > 0);
+        assert!(visit.hospital.is_none());
+        assert!(visit.department.is_none());
+        assert!(visit.doctor.is_none());
+        assert!(visit.diagnosis.is_none());
+    }
+
+    #[test]
+    fn test_visit_with_methods() {
+        let visit_date = NaiveDate::from_ymd_opt(2026, 3, 22).unwrap();
+
+        let visit = Visit::new("person-123".to_string(), visit_date)
+            .with_hospital("北京医院".to_string())
+            .with_department("内科".to_string())
+            .with_doctor("王医生".to_string())
+            .with_chief_complaint("头痛三天".to_string())
+            .with_diagnosis("偏头痛".to_string())
+            .with_treatment("止痛药".to_string())
+            .with_summary("症状缓解".to_string())
+            .with_notes("随访两周".to_string());
+
+        assert_eq!(visit.hospital, Some("北京医院".to_string()));
+        assert_eq!(visit.department, Some("内科".to_string()));
+        assert_eq!(visit.doctor, Some("王医生".to_string()));
+        assert_eq!(visit.chief_complaint, Some("头痛三天".to_string()));
+        assert_eq!(visit.diagnosis, Some("偏头痛".to_string()));
+        assert_eq!(visit.treatment, Some("止痛药".to_string()));
+        assert_eq!(visit.summary, Some("症状缓解".to_string()));
+        assert_eq!(visit.notes, Some("随访两周".to_string()));
+    }
+
+    #[test]
+    fn test_visit_serde() {
+        let visit_date = NaiveDate::from_ymd_opt(2026, 3, 22).unwrap();
+        let visit = Visit::new("person-123".to_string(), visit_date)
+            .with_hospital("测试医院".to_string());
+
+        let json = serde_json::to_string(&visit).unwrap();
+        assert!(json.contains("\"person_id\":\"person-123\""));
+        assert!(json.contains("\"visit_date\":\"2026-03-22\""));
+        assert!(json.contains("\"hospital\":\"测试医院\""));
+
+        let parsed: Visit = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.person_id, visit.person_id);
+        assert_eq!(parsed.visit_date, visit.visit_date);
+        assert_eq!(parsed.hospital, visit.hospital);
+    }
+
+    #[test]
+    fn test_visit_builder_success() {
+        let visit_date = NaiveDate::from_ymd_opt(2026, 3, 22).unwrap();
+
+        let visit = VisitBuilder::new()
+            .person_id("person-456")
+            .visit_date(visit_date)
+            .hospital("上海医院")
+            .department("外科")
+            .doctor("李医生")
+            .diagnosis("骨折")
+            .build()
+            .unwrap();
+
+        assert_eq!(visit.person_id, "person-456");
+        assert_eq!(visit.visit_date, visit_date);
+        assert_eq!(visit.hospital, Some("上海医院".to_string()));
+        assert_eq!(visit.department, Some("外科".to_string()));
+        assert_eq!(visit.doctor, Some("李医生".to_string()));
+        assert_eq!(visit.diagnosis, Some("骨折".to_string()));
+    }
+
+    #[test]
+    fn test_visit_builder_missing_person_id() {
+        let visit_date = NaiveDate::from_ymd_opt(2026, 3, 22).unwrap();
+
+        let result = VisitBuilder::new()
+            .visit_date(visit_date)
+            .build();
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Person ID is required");
+    }
+
+    #[test]
+    fn test_visit_builder_missing_visit_date() {
+        let result = VisitBuilder::new()
+            .person_id("person-123")
+            .build();
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Visit date is required");
+    }
+}
