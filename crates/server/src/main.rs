@@ -337,7 +337,15 @@ async fn get_visit(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> Result<Json<VisitResponse>, StatusCode> {
-    let visit = state.storage.get_visit(&id).await.map_err(|_| StatusCode::NOT_FOUND)?;
+    println!("[DEBUG] get_visit called with id: {}", id);
+    let visit = match state.storage.get_visit(&id).await {
+        Ok(v) => v,
+        Err(e) => {
+            println!("[DEBUG] get_visit error: {:?}", e);
+            return Err(StatusCode::NOT_FOUND);
+        }
+    };
+    println!("[DEBUG] get_visit found: {:?}", visit.id);
     let attachments = state.storage.list_attachments(&id).await.unwrap_or_default();
 
     let mut attachment_responses = Vec::new();
@@ -1023,12 +1031,12 @@ async fn main() -> anyhow::Result<()> {
         .route("/", get(serve_index))
         // API routes
         .route("/api/persons", get(list_persons).post(create_person))
-        .route("/api/persons/{id}", get(get_person).delete(delete_person))
+        .route("/api/persons/:id", get(get_person).delete(delete_person))
         .route("/api/visits", get(list_visits).post(create_visit))
-        .route("/api/visits/{id}", get(get_visit).delete(delete_visit))
-        .route("/api/visits/{id}/attachments", post(upload_attachment))
-        .route("/api/attachments/{id}/ocr", post(run_ocr).get(get_ocr))
-        .route("/api/attachments/{id}/extract", post(run_extraction))
+        .route("/api/visits/:id", get(get_visit).delete(delete_visit))
+        .route("/api/visits/:id/attachments", post(upload_attachment))
+        .route("/api/attachments/:id/ocr", post(run_ocr).get(get_ocr))
+        .route("/api/attachments/:id/extract", post(run_extraction))
         .route("/api/search", get(search))
         .route("/api/quick-import", post(quick_import))
         // Static files
