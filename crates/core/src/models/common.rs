@@ -167,3 +167,130 @@ impl std::str::FromStr for AttachmentType {
 pub fn generate_id() -> String {
     uuid::Uuid::new_v4().to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_relationship_display() {
+        assert_eq!(Relationship::Self_.to_string(), "self");
+        assert_eq!(Relationship::Spouse.to_string(), "spouse");
+        assert_eq!(Relationship::Child.to_string(), "child");
+        assert_eq!(Relationship::Parent.to_string(), "parent");
+        assert_eq!(Relationship::Sibling.to_string(), "sibling");
+        assert_eq!(Relationship::Other.to_string(), "other");
+    }
+
+    #[test]
+    fn test_relationship_from_str() {
+        assert_eq!("self".parse::<Relationship>(), Ok(Relationship::Self_));
+        assert_eq!("spouse".parse::<Relationship>(), Ok(Relationship::Spouse));
+        assert_eq!("child".parse::<Relationship>(), Ok(Relationship::Child));
+        assert!("invalid".parse::<Relationship>().is_err());
+    }
+
+    #[test]
+    fn test_relationship_default() {
+        assert_eq!(Relationship::default(), Relationship::Self_);
+    }
+
+    #[test]
+    fn test_relationship_serde() {
+        let rel = Relationship::Spouse;
+        let json = serde_json::to_string(&rel).unwrap();
+        assert_eq!(json, "\"spouse\"");
+
+        let parsed: Relationship = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, Relationship::Spouse);
+    }
+
+    #[test]
+    fn test_gender_display() {
+        assert_eq!(Gender::Male.to_string(), "male");
+        assert_eq!(Gender::Female.to_string(), "female");
+        assert_eq!(Gender::Other.to_string(), "other");
+    }
+
+    #[test]
+    fn test_gender_from_str() {
+        assert_eq!("male".parse::<Gender>(), Ok(Gender::Male));
+        assert_eq!("m".parse::<Gender>(), Ok(Gender::Male));
+        assert_eq!("female".parse::<Gender>(), Ok(Gender::Female));
+        assert_eq!("f".parse::<Gender>(), Ok(Gender::Female));
+        assert_eq!("MALE".parse::<Gender>(), Ok(Gender::Male)); // case insensitive
+        assert!("invalid".parse::<Gender>().is_err());
+    }
+
+    #[test]
+    fn test_gender_serde() {
+        let gender = Gender::Male;
+        let json = serde_json::to_string(&gender).unwrap();
+        assert_eq!(json, "\"male\"");
+
+        let parsed: Gender = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, Gender::Male);
+    }
+
+    #[test]
+    fn test_blood_type_display() {
+        assert_eq!(BloodType::A.to_string(), "A");
+        assert_eq!(BloodType::B.to_string(), "B");
+        assert_eq!(BloodType::Ab.to_string(), "AB");
+        assert_eq!(BloodType::O.to_string(), "O");
+    }
+
+    #[test]
+    fn test_blood_type_from_str() {
+        assert_eq!("A".parse::<BloodType>(), Ok(BloodType::A));
+        assert_eq!("a".parse::<BloodType>(), Ok(BloodType::A)); // case insensitive
+        assert_eq!("AB".parse::<BloodType>(), Ok(BloodType::Ab));
+        assert_eq!("ab".parse::<BloodType>(), Ok(BloodType::Ab));
+        assert!("invalid".parse::<BloodType>().is_err());
+    }
+
+    #[test]
+    fn test_blood_type_serde() {
+        let bt = BloodType::Ab;
+        let json = serde_json::to_string(&bt).unwrap();
+        assert_eq!(json, "\"AB\"");
+
+        let parsed: BloodType = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed, BloodType::Ab);
+    }
+
+    #[test]
+    fn test_attachment_type_display() {
+        assert_eq!(AttachmentType::MedicalRecord.to_string(), "medical_record");
+        assert_eq!(AttachmentType::LabReport.to_string(), "lab_report");
+        assert_eq!(AttachmentType::Prescription.to_string(), "prescription");
+        assert_eq!(AttachmentType::Imaging.to_string(), "imaging");
+        assert_eq!(AttachmentType::Invoice.to_string(), "invoice");
+        assert_eq!(AttachmentType::Other.to_string(), "other");
+    }
+
+    #[test]
+    fn test_attachment_type_from_str() {
+        assert_eq!("medical_record".parse::<AttachmentType>(), Ok(AttachmentType::MedicalRecord));
+        assert_eq!("lab_report".parse::<AttachmentType>(), Ok(AttachmentType::LabReport));
+        assert!("invalid".parse::<AttachmentType>().is_err());
+    }
+
+    #[test]
+    fn test_attachment_type_default() {
+        assert_eq!(AttachmentType::default(), AttachmentType::Other);
+    }
+
+    #[test]
+    fn test_generate_id() {
+        let id1 = generate_id();
+        let id2 = generate_id();
+
+        // IDs should be different
+        assert_ne!(id1, id2);
+
+        // IDs should be valid UUIDs
+        assert!(uuid::Uuid::parse_str(&id1).is_ok());
+        assert!(uuid::Uuid::parse_str(&id2).is_ok());
+    }
+}
