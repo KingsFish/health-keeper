@@ -10,6 +10,67 @@
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .modal { display: none; }
         .modal.active { display: flex; }
+
+        /* 预览模态框样式 */
+        #previewModal { background: rgba(0,0,0,0.9); }
+        #previewModal .preview-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        #previewModal img, #previewModal iframe {
+            max-width: 90vw;
+            max-height: 85vh;
+            transition: transform 0.2s ease;
+        }
+        #previewModal .preview-toolbar {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            background: rgba(0,0,0,0.7);
+            padding: 8px 16px;
+            border-radius: 8px;
+        }
+        #previewModal .preview-toolbar button {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        #previewModal .preview-toolbar button:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        #previewModal .preview-filename {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            background: rgba(0,0,0,0.5);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        #previewModal .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 32px;
+            cursor: pointer;
+            background: none;
+            border: none;
+        }
+        #previewModal .close-btn:hover { color: #ccc; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -222,6 +283,21 @@
                         <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">上传</button>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- Preview Modal -->
+        <div id="previewModal" class="modal fixed inset-0 items-center justify-center z-50">
+            <button class="close-btn" onclick="closePreview()">&times;</button>
+            <div class="preview-filename" id="previewFilename"></div>
+            <div class="preview-container" id="previewContainer" onclick="closePreview()">
+                <img id="previewImage" src="" alt="预览" onclick="event.stopPropagation()">
+                <iframe id="previewPdf" src="" style="display:none; width:90vw; height:85vh;" onclick="event.stopPropagation()"></iframe>
+            </div>
+            <div class="preview-toolbar" onclick="event.stopPropagation()">
+                <button onclick="zoomOut()">➖ 缩小</button>
+                <button onclick="resetZoom()">↺ 重置</button>
+                <button onclick="zoomIn()">➕ 放大</button>
             </div>
         </div>
     </div>
@@ -571,10 +647,10 @@
                         <div class="space-y-2">
                             ${visit.attachments.map(a => `
                                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                    <div class="flex items-center gap-3">
+                                    <div class="flex items-center gap-3 cursor-pointer" onclick="${isPreviewable(a.mime_type) ? `openPreview('${a.file_path}', '${a.original_filename || '附件'}', '${a.mime_type}')` : ''}">
                                         <span class="text-2xl">${getFileIcon(a.mime_type)}</span>
                                         <div>
-                                            <div class="font-medium">${a.original_filename || '附件'}</div>
+                                            <div class="font-medium ${isPreviewable(a.mime_type) ? 'text-blue-600 hover:underline' : ''}">${a.original_filename || '附件'}</div>
                                             <div class="text-sm text-gray-500">${formatBytes(a.file_size)}</div>
                                         </div>
                                     </div>
@@ -792,6 +868,100 @@
             if (mime === 'application/pdf') return '📑';
             return '📄';
         }
+
+        // 判断文件是否可预览
+        function isPreviewable(mime) {
+            if (!mime) return false;
+            // 支持常见图片格式和 PDF
+            const supportedImages = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp', 'image/x-bmp', 'image/avif', 'image/ico', 'image/x-icon'];
+            if (supportedImages.includes(mime.toLowerCase())) return true;
+            if (mime === 'application/pdf') return true;
+            return false;
+        }
+
+        // 预览相关变量
+        let currentZoom = 100;
+        const minZoom = 25;
+        const maxZoom = 400;
+
+        function openPreview(filePath, filename, mimeType) {
+            const modal = document.getElementById('previewModal');
+            const img = document.getElementById('previewImage');
+            const pdf = document.getElementById('previewPdf');
+
+            document.getElementById('previewFilename').textContent = filename;
+            currentZoom = 100;
+
+            if (mimeType === 'application/pdf') {
+                img.style.display = 'none';
+                pdf.style.display = 'block';
+                pdf.src = `/data/${filePath}`;
+            } else {
+                pdf.style.display = 'none';
+                img.style.display = 'block';
+                img.src = `/data/${filePath}`;
+                img.style.transform = 'scale(1)';
+            }
+
+            modal.classList.add('active');
+        }
+
+        function closePreview() {
+            document.getElementById('previewModal').classList.remove('active');
+            document.getElementById('previewImage').src = '';
+            document.getElementById('previewPdf').src = '';
+        }
+
+        function updateZoom() {
+            const img = document.getElementById('previewImage');
+            img.style.transform = `scale(${currentZoom / 100})`;
+        }
+
+        function zoomIn() {
+            if (currentZoom < maxZoom) {
+                currentZoom += 25;
+                updateZoom();
+            }
+        }
+
+        function zoomOut() {
+            if (currentZoom > minZoom) {
+                currentZoom -= 25;
+                updateZoom();
+            }
+        }
+
+        function resetZoom() {
+            currentZoom = 100;
+            updateZoom();
+        }
+
+        // 键盘和滚轮事件
+        document.addEventListener('keydown', (e) => {
+            const modal = document.getElementById('previewModal');
+            if (!modal.classList.contains('active')) return;
+
+            if (e.key === 'Escape') closePreview();
+            if (e.key === '+' || e.key === '=') zoomIn();
+            if (e.key === '-') zoomOut();
+            if (e.key === '0') resetZoom();
+        });
+
+        document.getElementById('previewModal').addEventListener('wheel', (e) => {
+            const modal = document.getElementById('previewModal');
+            if (!modal.classList.contains('active')) return;
+
+            // 只对图片缩放，PDF 使用浏览器自带缩放
+            const img = document.getElementById('previewImage');
+            if (img.style.display === 'none') return;
+
+            e.preventDefault();
+            if (e.deltaY < 0) {
+                zoomIn();
+            } else {
+                zoomOut();
+            }
+        });
 
         function filterByPerson(id) {
             selectedPersonId = id;
