@@ -809,6 +809,8 @@ async fn quick_import(
             let file_num = i + 1;
             let progress = base_progress + (file_num * ocr_progress_range / total_files) as u8;
 
+            println!("[DEBUG] 开始处理第 {} 个文件, 大小: {} bytes", file_num, file_data.len());
+
             // Get file extension from original filename or content type
             let ext = if let Some(name) = original_filename {
                 std::path::Path::new(name)
@@ -830,31 +832,39 @@ async fn quick_import(
                     _ => "jpg",
                 }
             };
+            println!("[DEBUG] 文件扩展名: {}", ext);
 
             // Calculate hash
+            println!("[DEBUG] 计算文件哈希...");
             use sha2::{Digest, Sha256};
             let mut hasher = Sha256::new();
             hasher.update(file_data);
             let hash = hex::encode(hasher.finalize());
+            println!("[DEBUG] 哈希计算完成: {}...", &hash[..16]);
 
             let stored_name = format!("{}.{}", hash, ext);
             let relative_path = format!("attachments/{}", stored_name);
 
             // Save to disk
+            println!("[DEBUG] 保存文件到磁盘...");
             let data_dir = std::path::Path::new("./data");
             let attachments_dir = data_dir.join("attachments");
             if let Err(e) = std::fs::create_dir_all(&attachments_dir) {
+                println!("[ERROR] 创建目录失败: {}", e);
                 yield error_event(&format!("创建目录失败: {}", e));
                 return;
             }
 
             let dest_path = attachments_dir.join(&stored_name);
             if let Err(e) = std::fs::write(&dest_path, file_data) {
+                println!("[ERROR] 保存文件失败: {}", e);
                 yield error_event(&format!("保存文件失败: {}", e));
                 return;
             }
+            println!("[DEBUG] 文件已保存: {:?}", dest_path);
 
             // Create attachment record (without visit_id)
+            println!("[DEBUG] 创建附件记录...");
             let attachment = health_keeper_core::models::Attachment::new(
                 String::new(), // Empty visit_id, will be linked later
                 relative_path.clone(),
@@ -865,10 +875,16 @@ async fn quick_import(
             attachment.file_size = Some(file_data.len() as i64);
             attachment.mime_type = content_type.clone();
             attachment.original_filename = original_filename.clone();
+            println!("[DEBUG] 附件对象创建完成, file_path: {}", attachment.file_path);
 
+            println!("[DEBUG] 调用 storage.create_attachment...");
             let attachment_id = match state.storage.create_attachment(&attachment).await {
-                Ok(id) => id,
+                Ok(id) => {
+                    println!("[DEBUG] 附件记录创建成功, id: {}", id);
+                    id
+                },
                 Err(e) => {
+                    println!("[ERROR] 保存附件记录失败: {:?}", e);
                     yield error_event(&format!("保存附件记录失败: {}", e));
                     return;
                 }
