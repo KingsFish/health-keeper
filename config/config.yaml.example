@@ -1,0 +1,42 @@
+# HealthKeeper Configuration Example
+# Copy this file to config.yaml and modify as needed
+
+app:
+  name: "HealthKeeper"
+  version: "0.1.0"
+  data_dir: "./data"
+
+storage:
+  type: "sqlite"
+  database_url: "sqlite:./data/healthkeeper.db?mode=rwc"
+
+ocr:
+  default: "paddle_local"
+  providers:
+    paddle_local:
+      enabled: true
+      endpoint: "http://127.0.0.1:8868"
+      timeout: 30
+    # baidu:
+    #   enabled: false
+    #   api_key: "${BAIDU_OCR_API_KEY}"
+    #   secret_key: "${BAIDU_OCR_SECRET_KEY}"
+
+llm:
+  default: "ollama_local"
+  providers:
+    ollama_local:
+      enabled: true
+      endpoint: "http://127.0.0.1:11434"
+      model: "qwen2.5:7b"
+      timeout: 120
+    # claude:
+    #   enabled: false
+    #   api_key: "${ANTHROPIC_API_KEY}"
+    #   model: "claude-sonnet-4-6"
+    #   endpoint: "https://api.anthropic.com"
+
+sync:
+  enabled: false
+  server_url: ""
+  sync_interval: 300

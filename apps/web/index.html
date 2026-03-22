@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HealthKeeper - 医疗档案管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .loading { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .modal { display: none; }
+        .modal.active { display: flex; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div id="app" class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">🏥 HealthKeeper</h1>
+            <p class="text-gray-600 mt-1">医疗档案管理系统</p>
+        </header>
+
+        <!-- Search Bar -->
+        <div class="bg-white rounded-lg shadow p-4 mb-6">
+            <div class="flex gap-4">
+                <input type="text" id="searchInput" placeholder="搜索病历、诊断、药物..."
+                    class="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button onclick="search()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                    搜索
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Persons Panel -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="p-4 border-b flex justify-between items-center">
+                    <h2 class="text-lg font-semibold">家庭成员</h2>
+                    <button onclick="showPersonModal()" class="text-blue-600 hover:text-blue-800">+ 添加</button>
+                </div>
+                <div id="personsList" class="divide-y max-h-96 overflow-y-auto"></div>
+            </div>
+
+            <!-- Visits Panel -->
+            <div class="lg:col-span-2 bg-white rounded-lg shadow">
+                <div class="p-4 border-b flex justify-between items-center">
+                    <h2 class="text-lg font-semibold">就诊记录</h2>
+                    <div class="flex gap-2">
+                        <button onclick="showQuickImportModal()" class="text-green-600 hover:text-green-800 font-medium">📷 快速录入</button>
+                        <button onclick="showVisitModal()" class="text-blue-600 hover:text-blue-800">+ 手动添加</button>
+                    </div>
+                </div>
+                <div id="visitsList" class="divide-y max-h-[600px] overflow-y-auto"></div>
+            </div>
+        </div>
+
+        <!-- Visit Detail Modal -->
+        <div id="visitDetailModal" class="modal fixed inset-0 bg-black/50 items-center justify-center z-50">
+            <div class="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                <div class="p-4 border-b flex justify-between items-center sticky top-0 bg-white">
+                    <h3 class="text-lg font-semibold" id="visitDetailTitle">就诊详情</h3>
+                    <button onclick="closeVisitDetail()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+                </div>
+                <div id="visitDetailContent" class="p-4"></div>
+            </div>
+        </div>
+
+        <!-- Add Person Modal -->
+        <div id="personModal" class="modal fixed inset-0 bg-black/50 items-center justify-center z-50">
+            <div class="bg-white rounded-lg max-w-md w-full mx-4">
+                <div class="p-4 border-b">
+                    <h3 class="text-lg font-semibold">添加成员</h3>
+                </div>
+                <form id="personForm" class="p-4 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">姓名 *</label>
+                        <input type="text" name="name" required class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">关系</label>
+                        <select name="relationship" class="w-full border rounded-lg px-3 py-2">
+                            <option value="self">本人</option>
+                            <option value="spouse">配偶</option>
+                            <option value="child">子女</option>
+                            <option value="parent">父母</option>
+                            <option value="sibling">兄弟姐妹</option>
+                            <option value="other">其他</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">出生日期</label>
+                        <input type="date" name="birth_date" class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">性别</label>
+                        <select name="gender" class="w-full border rounded-lg px-3 py-2">
+                            <option value="">未知</option>
+                            <option value="male">男</option>
+                            <option value="female">女</option>
+                        </select>
+                    </div>
+                    <div class="flex justify-end gap-2">
+                        <button type="button" onclick="closePersonModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">取消</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Add Visit Modal -->
+        <div id="visitModal" class="modal fixed inset-0 bg-black/50 items-center justify-center z-50">
+            <div class="bg-white rounded-lg max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+                <div class="p-4 border-b">
+                    <h3 class="text-lg font-semibold">添加就诊记录</h3>
+                </div>
+                <form id="visitForm" class="p-4 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">患者 *</label>
+                        <select name="person_id" required id="visitPersonSelect" class="w-full border rounded-lg px-3 py-2"></select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">就诊日期 *</label>
+                        <input type="date" name="visit_date" required class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">医院</label>
+                        <input type="text" name="hospital" class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">科室</label>
+                        <input type="text" name="department" class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">医生</label>
+                        <input type="text" name="doctor" class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">主诉</label>
+                        <textarea name="chief_complaint" rows="2" class="w-full border rounded-lg px-3 py-2"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">诊断</label>
+                        <textarea name="diagnosis" rows="2" class="w-full border rounded-lg px-3 py-2"></textarea>
+                    </div>
+                    <div class="flex justify-end gap-2">
+                        <button type="button" onclick="closeVisitModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">取消</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Upload Modal -->
+        <div id="uploadModal" class="modal fixed inset-0 bg-black/50 items-center justify-center z-50">
+            <div class="bg-white rounded-lg max-w-md w-full mx-4">
+                <div class="p-4 border-b">
+                    <h3 class="text-lg font-semibold">上传文件</h3>
+                </div>
+                <form id="uploadForm" class="p-4 space-y-4">
+                    <input type="hidden" name="visit_id" id="uploadVisitId">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">选择文件</label>
+                        <input type="file" name="file" accept="image/*,.pdf" required class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                    <div class="text-sm text-gray-500">支持图片和 PDF 文件</div>
+                    <div class="flex justify-end gap-2">
+                        <button type="button" onclick="closeUploadModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">取消</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">上传</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Quick Import Modal -->
+        <div id="quickImportModal" class="modal fixed inset-0 bg-black/50 items-center justify-center z-50">
+            <div class="bg-white rounded-lg max-w-md w-full mx-4">
+                <div class="p-4 border-b">
+                    <h3 class="text-lg font-semibold">📷 快速录入</h3>
+                </div>
+                <form id="quickImportForm" class="p-4 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">患者 *</label>
+                        <select name="person_id" required id="quickImportPersonSelect" class="w-full border rounded-lg px-3 py-2"></select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">病历/检查报告 *</label>
+                        <input type="file" name="files" accept="image/*,.pdf" multiple required class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                    <div class="text-sm text-gray-500">支持上传多个文件，AI 将自动识别并提取信息</div>
+                    <div id="quickImportProgress" class="hidden">
+                        <div class="flex items-center gap-2 text-blue-600">
+                            <svg class="loading h-5 w-5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" stroke-dasharray="60" stroke-dashoffset="20"></circle></svg>
+                            <span id="quickImportStatus">正在识别...</span>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2">
+                        <button type="button" onclick="closeQuickImportModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">取消</button>
+                        <button type="submit" id="quickImportSubmit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">开始识别</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = '';
+        let persons = [];
+        let currentVisitId = null;
+
+        // ==================== API Calls ====================
+        async function fetchAPI(url, options = {}) {
+            const res = await fetch(API + url, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...options.headers }
+            });
+            if (!res.ok) throw new Error('API Error');
+            return res.json();
+        }
+
+        // ==================== Load Data ====================
+        async function loadPersons() {
+            persons = await fetchAPI('/api/persons');
+            renderPersons();
+            updatePersonSelect();
+        }
+
+        async function loadVisits(personId = null) {
+            const url = personId ? `/api/visits?person_id=${personId}` : '/api/visits';
+            const visits = await fetchAPI(url);
+            renderVisits(visits);
+        }
+
+        // ==================== Render ====================
+        function renderPersons() {
+            const container = document.getElementById('personsList');
+            if (persons.length === 0) {
+                container.innerHTML = '<div class="p-4 text-gray-500 text-center">暂无成员</div>';
+                return;
+            }
+            container.innerHTML = persons.map(p => `
+                <div class="p-4 hover:bg-gray-50 cursor-pointer flex justify-between items-center"
+                     onclick="filterByPerson('${p.id}')">
+                    <div>
+                        <div class="font-medium">${p.name}</div>
+                        <div class="text-sm text-gray-500">${formatRelationship(p.relationship)}</div>
+                    </div>
+                    <button onclick="event.stopPropagation(); deletePerson('${p.id}')" class="text-red-500 hover:text-red-700 text-sm">删除</button>
+                </div>
+            `).join('');
+        }
+
+        function renderVisits(visits) {
+            const container = document.getElementById('visitsList');
+            if (visits.length === 0) {
+                container.innerHTML = '<div class="p-8 text-gray-500 text-center">暂无就诊记录</div>';
+                return;
+            }
+            container.innerHTML = visits.map(v => `
+                <div class="p-4 hover:bg-gray-50 cursor-pointer" onclick="showVisitDetail('${v.id}')">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="font-medium">${v.hospital || '未知医院'} - ${v.department || '未知科室'}</div>
+                            <div class="text-sm text-gray-500">${v.visit_date} · ${getPersonName(v.person_id)}</div>
+                        </div>
+                        ${v.diagnosis ? `<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">${v.diagnosis}</span>` : ''}
+                    </div>
+                    ${v.chief_complaint ? `<div class="text-sm text-gray-600 mt-2">主诉: ${v.chief_complaint}</div>` : ''}
+                    <div class="flex gap-2 mt-2">
+                        ${v.attachments.map(a => `
+                            <span class="text-xs ${a.has_extraction ? 'bg-green-100 text-green-800' : a.has_ocr ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-600'} px-2 py-1 rounded">
+                                📎 ${a.original_filename || '附件'}
+                            </span>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ==================== Person Actions ====================
+        function showPersonModal() {
+            document.getElementById('personModal').classList.add('active');
+            document.getElementById('personForm').reset();
+        }
+
+        function closePersonModal() {
+            document.getElementById('personModal').classList.remove('active');
+        }
+
+        document.getElementById('personForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const data = {
+                name: form.name.value,
+                relationship: form.relationship.value,
+                birth_date: form.birth_date.value || null,
+                gender: form.gender.value || null
+            };
+            await fetchAPI('/api/persons', { method: 'POST', body: JSON.stringify(data) });
+            closePersonModal();
+            loadPersons();
+        });
+
+        async function deletePerson(id) {
+            if (!confirm('确定删除该成员？')) return;
+            await fetchAPI(`/api/persons/${id}`, { method: 'DELETE' });
+            loadPersons();
+            loadVisits();
+        }
+
+        // ==================== Visit Actions ====================
+        function showVisitModal() {
+            document.getElementById('visitModal').classList.add('active');
+            document.getElementById('visitForm').reset();
+            updatePersonSelect();
+        }
+
+        function closeVisitModal() {
+            document.getElementById('visitModal').classList.remove('active');
+        }
+
+        function updatePersonSelect() {
+            const select = document.getElementById('visitPersonSelect');
+            select.innerHTML = persons.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+        }
+
+        // ==================== Quick Import ====================
+        function showQuickImportModal() {
+            document.getElementById('quickImportModal').classList.add('active');
+            document.getElementById('quickImportForm').reset();
+            document.getElementById('quickImportProgress').classList.add('hidden');
+            document.getElementById('quickImportSubmit').disabled = false;
+
+            // Update person select
+            const select = document.getElementById('quickImportPersonSelect');
+            select.innerHTML = persons.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+        }
+
+        function closeQuickImportModal() {
+            document.getElementById('quickImportModal').classList.remove('active');
+        }
+
+        document.getElementById('quickImportForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const files = form.files.files;
+            const personId = form.person_id.value;
+
+            if (!files || files.length === 0) {
+                alert('请选择文件');
+                return;
+            }
+
+            // Show progress
+            document.getElementById('quickImportProgress').classList.remove('hidden');
+            document.getElementById('quickImportSubmit').disabled = true;
+            document.getElementById('quickImportStatus').textContent = '上传文件中...';
+
+            // Progress bar element
+            const progressBar = document.getElementById('quickImportProgress');
+            progressBar.innerHTML = `
+                <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
+                    <div id="progressBarFill" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <div id="progressMessage" class="text-sm text-gray-600"></div>
+            `;
+
+            const updateProgress = (message, percent) => {
+                document.getElementById('progressBarFill').style.width = percent + '%';
+                document.getElementById('progressMessage').textContent = message;
+            };
+
+            const formData = new FormData();
+            formData.append('person_id', personId);
+            for (let i = 0; i < files.length; i++) {
+                formData.append('files', files[i]);
+            }
+
+            try {
+                const res = await fetch(API + '/api/quick-import', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!res.ok) throw new Error('请求失败');
+
+                // Read SSE stream
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let result = null;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); // Keep incomplete line in buffer
+
+                    for (const line of lines) {
+                        if (line.startsWith('data:')) {
+                            const data = line.slice(5).trim();
+                            if (!data) continue;
+
+                            try {
+                                const event = JSON.parse(data);
+
+                                if (event.stage === 'error') {
+                                    throw new Error(event.message);
+                                } else if (event.stage === 'complete') {
+                                    result = event;
+                                } else if (event.data) {
+                                    // Final result with data field
+                                    result = event;
+                                } else {
+                                    // Progress update
+                                    updateProgress(event.message, event.progress);
+                                }
+                            } catch (parseErr) {
+                                console.log('Parse err:', parseErr, data);
+                            }
+                        }
+                    }
+                }
+
+                if (result && result.data) {
+                    updateProgress('识别完成！', 100);
+                    setTimeout(() => {
+                        closeQuickImportModal();
+                        showVisitModalWithPrefill(personId, result.data);
+                    }, 500);
+                } else if (result) {
+                    updateProgress('识别完成！', 100);
+                    setTimeout(() => {
+                        closeQuickImportModal();
+                        showVisitModalWithPrefill(personId, result);
+                    }, 500);
+                } else {
+                    throw new Error('未收到识别结果');
+                }
+
+            } catch (err) {
+                alert('识别失败: ' + err.message);
+                document.getElementById('quickImportProgress').classList.add('hidden');
+                document.getElementById('quickImportSubmit').disabled = false;
+            }
+        });
+
+        function showVisitModalWithPrefill(personId, data) {
+            showVisitModal();
+            const visitForm = document.getElementById('visitForm');
+            visitForm.person_id.value = personId;
+
+            if (data.visit_date) {
+                visitForm.visit_date.value = data.visit_date;
+            } else {
+                visitForm.visit_date.value = new Date().toISOString().split('T')[0];
+            }
+
+            if (data.hospital) visitForm.hospital.value = data.hospital;
+            if (data.department) visitForm.department.value = data.department;
+            if (data.doctor) visitForm.doctor.value = data.doctor;
+            if (data.chief_complaint) visitForm.chief_complaint.value = data.chief_complaint;
+            if (data.diagnosis) visitForm.diagnosis.value = data.diagnosis;
+        }
+
+        document.getElementById('visitForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const data = {
+                person_id: form.person_id.value,
+                visit_date: form.visit_date.value,
+                hospital: form.hospital.value || null,
+                department: form.department.value || null,
+                doctor: form.doctor.value || null,
+                chief_complaint: form.chief_complaint.value || null,
+                diagnosis: form.diagnosis.value || null
+            };
+            try {
+                await fetchAPI('/api/visits', { method: 'POST', body: JSON.stringify(data) });
+                closeVisitModal();
+                loadVisits();
+            } catch (err) {
+                alert('保存失败: ' + err.message);
+            }
+        });
+
+        async function showVisitDetail(id) {
+            currentVisitId = id;
+            const visit = await fetchAPI(`/api/visits/${id}`);
+            const modal = document.getElementById('visitDetailModal');
+
+            document.getElementById('visitDetailTitle').textContent = `${visit.hospital || '就诊记录'} - ${visit.visit_date}`;
+
+            document.getElementById('visitDetailContent').innerHTML = `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><span class="text-gray-500">患者:</span> ${getPersonName(visit.person_id)}</div>
+                        <div><span class="text-gray-500">科室:</span> ${visit.department || '-'}</div>
+                        <div><span class="text-gray-500">医生:</span> ${visit.doctor || '-'}</div>
+                        <div><span class="text-gray-500">日期:</span> ${visit.visit_date}</div>
+                    </div>
+
+                    ${visit.chief_complaint ? `<div><span class="text-gray-500">主诉:</span> ${visit.chief_complaint}</div>` : ''}
+                    ${visit.diagnosis ? `<div><span class="text-gray-500">诊断:</span> <span class="font-medium">${visit.diagnosis}</span></div>` : ''}
+                    ${visit.treatment ? `<div><span class="text-gray-500">治疗:</span> ${visit.treatment}</div>` : ''}
+                    ${visit.notes ? `<div><span class="text-gray-500">备注:</span> ${visit.notes}</div>` : ''}
+
+                    <div class="border-t pt-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="font-medium">附件 (${visit.attachments.length})</h4>
+                            <button onclick="showUploadModal('${visit.id}')" class="text-blue-600 hover:text-blue-800 text-sm">+ 上传</button>
+                        </div>
+                        <div class="space-y-2">
+                            ${visit.attachments.map(a => `
+                                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-2xl">${getFileIcon(a.mime_type)}</span>
+                                        <div>
+                                            <div class="font-medium">${a.original_filename || '附件'}</div>
+                                            <div class="text-sm text-gray-500">${formatBytes(a.file_size)}</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        ${!a.has_ocr ? `<button onclick="runOcr('${a.id}')" class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded text-sm hover:bg-yellow-200">OCR</button>` : ''}
+                                        ${a.has_ocr && !a.has_extraction ? `<button onclick="runExtract('${a.id}')" class="px-3 py-1 bg-green-100 text-green-800 rounded text-sm hover:bg-green-200">提取</button>` : ''}
+                                        ${a.has_extraction ? `<button onclick="viewExtraction('${a.id}')" class="px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm hover:bg-blue-200">查看</button>` : ''}
+                                        ${a.has_ocr ? `<button onclick="viewOcr('${a.id}')" class="px-3 py-1 bg-gray-100 text-gray-800 rounded text-sm hover:bg-gray-200">OCR</button>` : ''}
+                                        <a href="/data/${a.file_path}" target="_blank" class="px-3 py-1 bg-gray-100 text-gray-800 rounded text-sm hover:bg-gray-200">查看</a>
+                                    </div>
+                                </div>
+                            `).join('')}
+                            ${visit.attachments.length === 0 ? '<div class="text-gray-500 text-center py-4">暂无附件</div>' : ''}
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-4 border-t">
+                        <button onclick="deleteVisit('${visit.id}')" class="px-4 py-2 text-red-600 hover:text-red-800">删除记录</button>
+                    </div>
+                </div>
+            `;
+
+            modal.classList.add('active');
+        }
+
+        function closeVisitDetail() {
+            document.getElementById('visitDetailModal').classList.remove('active');
+        }
+
+        async function deleteVisit(id) {
+            if (!confirm('确定删除该就诊记录？')) return;
+            await fetchAPI(`/api/visits/${id}`, { method: 'DELETE' });
+            closeVisitDetail();
+            loadVisits();
+        }
+
+        // ==================== Upload ====================
+        function showUploadModal(visitId) {
+            document.getElementById('uploadVisitId').value = visitId;
+            document.getElementById('uploadModal').classList.add('active');
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').classList.remove('active');
+        }
+
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const visitId = document.getElementById('uploadVisitId').value;
+            const file = form.file.files[0];
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const res = await fetch(API + `/api/visits/${visitId}/attachments`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (res.ok) {
+                closeUploadModal();
+                showVisitDetail(visitId);
+            } else {
+                alert('上传失败');
+            }
+        });
+
+        // ==================== OCR & Extraction ====================
+        async function runOcr(attachmentId) {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '处理中...';
+
+            try {
+                await fetchAPI(`/api/attachments/${attachmentId}/ocr`, { method: 'POST' });
+                showVisitDetail(currentVisitId);
+            } catch (e) {
+                alert('OCR 处理失败: ' + e.message);
+                btn.disabled = false;
+                btn.textContent = 'OCR';
+            }
+        }
+
+        async function viewOcr(attachmentId) {
+            const result = await fetchAPI(`/api/attachments/${attachmentId}/ocr`);
+            alert('OCR 结果:\n\n' + result.recognized_text);
+        }
+
+        async function runExtract(attachmentId) {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '提取中...';
+
+            try {
+                const result = await fetchAPI(`/api/attachments/${attachmentId}/extract`, { method: 'POST' });
+                showVisitDetail(currentVisitId);
+            } catch (e) {
+                alert('提取失败: ' + e.message);
+                btn.disabled = false;
+                btn.textContent = '提取';
+            }
+        }
+
+        async function viewExtraction(attachmentId) {
+            const result = await fetchAPI(`/api/attachments/${attachmentId}/extract`);
+            const content = [];
+            if (result.diagnosis) content.push(`诊断: ${result.diagnosis}`);
+            if (result.chief_complaint) content.push(`主诉: ${result.chief_complaint}`);
+            if (result.treatment) content.push(`治疗: ${result.treatment}`);
+            if (result.medications && result.medications.length > 0) {
+                content.push(`药物:\n${result.medications.map(m => `  - ${m.name} ${m.dosage || ''} ${m.frequency || ''}`).join('\n')}`);
+            }
+            if (result.follow_up) content.push(`复诊: ${result.follow_up}`);
+            if (result.summary) content.push(`摘要: ${result.summary}`);
+
+            alert('提取结果:\n\n' + content.join('\n\n'));
+        }
+
+        // ==================== Search ====================
+        async function search() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) return;
+
+            const results = await fetchAPI(`/api/search?q=${encodeURIComponent(query)}`);
+            renderVisits(results);
+        }
+
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') search();
+        });
+
+        // ==================== Helpers ====================
+        function getPersonName(id) {
+            const p = persons.find(p => p.id === id);
+            return p ? p.name : '未知';
+        }
+
+        function formatRelationship(r) {
+            const map = { self: '本人', spouse: '配偶', child: '子女', parent: '父母', sibling: '兄弟姐妹', other: '其他' };
+            return map[r] || r;
+        }
+
+        function formatBytes(bytes) {
+            if (!bytes) return '';
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+        }
+
+        function getFileIcon(mime) {
+            if (!mime) return '📄';
+            if (mime.startsWith('image/')) return '🖼️';
+            if (mime === 'application/pdf') return '📑';
+            return '📄';
+        }
+
+        function filterByPerson(id) {
+            loadVisits(id);
+        }
+
+        // ==================== Init ====================
+        loadPersons();
+        loadVisits();
+    </script>
+</body>
+</html>
