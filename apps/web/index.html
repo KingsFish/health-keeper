@@ -265,6 +265,12 @@
                 }
             });
             doctors = Array.from(doctorSet).sort();
+
+            // Update doctor filter if panel is visible
+            const panel = document.getElementById('filtersPanel');
+            if (!panel.classList.contains('hidden')) {
+                updateFilterDoctorSelect();
+            }
         }
 
         // ==================== Render ====================
