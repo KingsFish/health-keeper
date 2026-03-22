@@ -81,6 +81,7 @@ struct CreateVisitRequest {
     chief_complaint: Option<String>,
     diagnosis: Option<String>,
     treatment: Option<String>,
+    summary: Option<String>,
     notes: Option<String>,
     #[serde(default)]
     attachment_ids: Vec<String>,
@@ -97,6 +98,7 @@ struct VisitResponse {
     chief_complaint: Option<String>,
     diagnosis: Option<String>,
     treatment: Option<String>,
+    summary: Option<String>,
     notes: Option<String>,
     created_at: String,
     updated_at: String,
@@ -274,6 +276,7 @@ async fn list_visits(
             chief_complaint: v.chief_complaint,
             diagnosis: v.diagnosis,
             treatment: v.treatment,
+            summary: v.summary,
             notes: v.notes,
             created_at: v.created_at.to_rfc3339(),
             updated_at: v.updated_at.to_rfc3339(),
@@ -304,6 +307,7 @@ async fn create_visit(
     visit.chief_complaint = req.chief_complaint;
     visit.diagnosis = req.diagnosis;
     visit.treatment = req.treatment;
+    visit.summary = req.summary;
     visit.notes = req.notes;
 
     // Create visit
@@ -326,6 +330,7 @@ async fn create_visit(
             chief_complaint: visit.chief_complaint,
             diagnosis: visit.diagnosis,
             treatment: visit.treatment,
+            summary: visit.summary,
             notes: visit.notes,
             created_at: visit.created_at.to_rfc3339(),
             updated_at: visit.updated_at.to_rfc3339(),
@@ -377,6 +382,7 @@ async fn get_visit(
         chief_complaint: visit.chief_complaint,
         diagnosis: visit.diagnosis,
         treatment: visit.treatment,
+        summary: visit.summary,
         notes: visit.notes,
         created_at: visit.created_at.to_rfc3339(),
         updated_at: visit.updated_at.to_rfc3339(),
@@ -678,6 +684,7 @@ async fn search(
         chief_complaint: v.chief_complaint,
         diagnosis: v.diagnosis,
         treatment: v.treatment,
+        summary: v.summary,
         notes: v.notes,
         created_at: v.created_at.to_rfc3339(),
         updated_at: v.updated_at.to_rfc3339(),

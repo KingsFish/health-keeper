@@ -24,6 +24,8 @@ pub struct Visit {
     pub diagnosis: Option<String>,
     /// Treatment prescribed
     pub treatment: Option<String>,
+    /// Summary of the visit
+    pub summary: Option<String>,
     /// Additional notes
     pub notes: Option<String>,
     /// Record creation time
@@ -46,6 +48,7 @@ impl Visit {
             chief_complaint: None,
             diagnosis: None,
             treatment: None,
+            summary: None,
             notes: None,
             created_at: now,
             updated_at: now,
@@ -88,6 +91,12 @@ impl Visit {
         self
     }
 
+    /// Set the summary
+    pub fn with_summary(mut self, summary: String) -> Self {
+        self.summary = Some(summary);
+        self
+    }
+
     /// Set the notes
     pub fn with_notes(mut self, notes: String) -> Self {
         self.notes = Some(notes);
@@ -106,6 +115,7 @@ pub struct VisitBuilder {
     chief_complaint: Option<String>,
     diagnosis: Option<String>,
     treatment: Option<String>,
+    summary: Option<String>,
     notes: Option<String>,
 }
 
@@ -154,6 +164,11 @@ impl VisitBuilder {
         self
     }
 
+    pub fn summary(mut self, summary: impl Into<String>) -> Self {
+        self.summary = Some(summary.into());
+        self
+    }
+
     pub fn notes(mut self, notes: impl Into<String>) -> Self {
         self.notes = Some(notes.into());
         self
@@ -182,6 +197,9 @@ impl VisitBuilder {
         }
         if let Some(treatment) = self.treatment {
             visit.treatment = Some(treatment);
+        }
+        if let Some(summary) = self.summary {
+            visit.summary = Some(summary);
         }
         if let Some(notes) = self.notes {
             visit.notes = Some(notes);

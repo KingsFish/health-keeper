@@ -166,6 +166,10 @@
                         <label class="block text-sm font-medium text-gray-700 mb-1">诊断</label>
                         <textarea name="diagnosis" rows="2" class="w-full border rounded-lg px-3 py-2"></textarea>
                     </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">摘要</label>
+                        <textarea name="summary" rows="2" class="w-full border rounded-lg px-3 py-2" placeholder="病历摘要"></textarea>
+                    </div>
 
                     <!-- 隐藏字段：保存已上传的附件ID -->
                     <input type="hidden" id="uploadedAttachmentIds" value="">
@@ -418,6 +422,7 @@
             if (data.doctor) visitForm.doctor.value = data.doctor;
             if (data.chief_complaint) visitForm.chief_complaint.value = data.chief_complaint;
             if (data.diagnosis) visitForm.diagnosis.value = data.diagnosis;
+            if (data.summary) visitForm.summary.value = data.summary;
         }
 
         function updateUploadedFilesList(files) {
@@ -452,6 +457,7 @@
                 doctor: form.doctor.value || null,
                 chief_complaint: form.chief_complaint.value || null,
                 diagnosis: form.diagnosis.value || null,
+                summary: form.summary.value || null,
                 attachment_ids: uploadedAttachments
             };
             try {
@@ -481,6 +487,7 @@
 
                     ${visit.chief_complaint ? `<div><span class="text-gray-500">主诉:</span> ${visit.chief_complaint}</div>` : ''}
                     ${visit.diagnosis ? `<div><span class="text-gray-500">诊断:</span> <span class="font-medium">${visit.diagnosis}</span></div>` : ''}
+                    ${visit.summary ? `<div><span class="text-gray-500">摘要:</span> ${visit.summary}</div>` : ''}
                     ${visit.treatment ? `<div><span class="text-gray-500">治疗:</span> ${visit.treatment}</div>` : ''}
                     ${visit.notes ? `<div><span class="text-gray-500">备注:</span> ${visit.notes}</div>` : ''}
 

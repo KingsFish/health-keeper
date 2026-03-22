@@ -158,8 +158,8 @@ impl Storage for SqliteStorage {
 
         sqlx::query(
             r#"
-            INSERT INTO visits (id, person_id, visit_date, hospital, department, doctor, chief_complaint, diagnosis, treatment, notes, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO visits (id, person_id, visit_date, hospital, department, doctor, chief_complaint, diagnosis, treatment, summary, notes, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(&id)
@@ -171,6 +171,7 @@ impl Storage for SqliteStorage {
         .bind(&visit.chief_complaint)
         .bind(&visit.diagnosis)
         .bind(&visit.treatment)
+        .bind(&visit.summary)
         .bind(&visit.notes)
         .bind(visit.created_at)
         .bind(visit.updated_at)
@@ -197,6 +198,7 @@ impl Storage for SqliteStorage {
                 chief_complaint: row.get("chief_complaint"),
                 diagnosis: row.get("diagnosis"),
                 treatment: row.get("treatment"),
+                summary: row.get("summary"),
                 notes: row.get("notes"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
@@ -232,6 +234,7 @@ impl Storage for SqliteStorage {
                 chief_complaint: row.get("chief_complaint"),
                 diagnosis: row.get("diagnosis"),
                 treatment: row.get("treatment"),
+                summary: row.get("summary"),
                 notes: row.get("notes"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
@@ -266,6 +269,7 @@ impl Storage for SqliteStorage {
                 chief_complaint: row.get("chief_complaint"),
                 diagnosis: row.get("diagnosis"),
                 treatment: row.get("treatment"),
+                summary: row.get("summary"),
                 notes: row.get("notes"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
@@ -277,7 +281,7 @@ impl Storage for SqliteStorage {
         let result = sqlx::query(
             r#"
             UPDATE visits
-            SET visit_date = ?, hospital = ?, department = ?, doctor = ?, chief_complaint = ?, diagnosis = ?, treatment = ?, notes = ?
+            SET visit_date = ?, hospital = ?, department = ?, doctor = ?, chief_complaint = ?, diagnosis = ?, treatment = ?, summary = ?, notes = ?
             WHERE id = ?
             "#,
         )
@@ -288,6 +292,7 @@ impl Storage for SqliteStorage {
         .bind(&visit.chief_complaint)
         .bind(&visit.diagnosis)
         .bind(&visit.treatment)
+        .bind(&visit.summary)
         .bind(&visit.notes)
         .bind(&visit.id)
         .execute(&self.pool)
@@ -528,6 +533,7 @@ impl Storage for SqliteStorage {
                 chief_complaint: row.get("chief_complaint"),
                 diagnosis: row.get("diagnosis"),
                 treatment: row.get("treatment"),
+                summary: row.get("summary"),
                 notes: row.get("notes"),
                 created_at: row.get("created_at"),
                 updated_at: row.get("updated_at"),
@@ -536,8 +542,27 @@ impl Storage for SqliteStorage {
     }
 
     async fn migrate(&self) -> Result<(), StorageError> {
-        let migration_sql = include_str!("../../../../migrations/001_init.sql");
+        // Run migrations in order
+        let migrations = vec![
+            include_str!("../../../../migrations/001_init.sql"),
+            include_str!("../../../../migrations/002_allow_null_visit_id.sql"),
+            include_str!("../../../../migrations/003_add_summary.sql"),
+        ];
 
+        for migration_sql in migrations {
+            Self::execute_migration(&self.pool, migration_sql).await?;
+        }
+
+        Ok(())
+    }
+
+    async fn close(&self) {
+        self.pool.close().await;
+    }
+}
+
+impl SqliteStorage {
+    async fn execute_migration(pool: &sqlx::SqlitePool, migration_sql: &str) -> Result<(), StorageError> {
         // Execute the migration SQL
         // We need to handle triggers properly (they contain semicolons inside BEGIN...END)
         let mut current_statement = String::new();
@@ -576,10 +601,22 @@ impl Storage for SqliteStorage {
 
                 let sql = sql.trim();
                 if !sql.is_empty() {
-                    sqlx::query(sql)
-                        .execute(&self.pool)
-                        .await
-                        .map_err(|e| StorageError::Migration(e.to_string()))?;
+                    let result = sqlx::query(sql)
+                        .execute(pool)
+                        .await;
+
+                    match result {
+                        Ok(_) => {}
+                        Err(e) => {
+                            let err_str = e.to_string();
+                            // Ignore "duplicate column" and "already exists" errors (migration already applied)
+                            if !err_str.contains("duplicate column") &&
+                               !err_str.contains("already exists") &&
+                               !err_str.contains("already another table") {
+                                return Err(StorageError::Migration(err_str));
+                            }
+                        }
+                    }
                 }
                 current_statement.clear();
                 in_trigger = false;
@@ -587,9 +624,5 @@ impl Storage for SqliteStorage {
         }
 
         Ok(())
-    }
-
-    async fn close(&self) {
-        self.pool.close().await;
     }
 }
