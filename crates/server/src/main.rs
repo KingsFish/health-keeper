@@ -741,15 +741,7 @@ async fn quick_import(
             }).unwrap_or_else(|_| Event::default().data("{}")))
         };
 
-        // Validate
-        let person_id = match person_id {
-            Some(id) => id,
-            None => {
-                yield error_event("缺少患者信息");
-                return;
-            }
-        };
-
+        // Validate files
         if files.is_empty() {
             yield error_event("没有收到文件");
             return;
@@ -758,15 +750,8 @@ async fn quick_import(
         let total_files = files.len();
         yield progress_event("upload", &format!("已接收 {} 个文件", total_files), 10);
 
-        // Verify person exists
-        yield progress_event("validate", "验证患者信息...", 15);
-
         // Initialize OCR
-        yield Ok(Event::default().json_data(ProgressEvent {
-            stage: "init".to_string(),
-            message: "初始化 OCR 服务...".to_string(),
-            progress: 20,
-        }).unwrap());
+        yield progress_event("init", "初始化 OCR 服务...", 15);
 
         let mut ocr_registry = OcrRegistry::new();
         for (name, provider_config) in &state.config.ocr.providers {

@@ -371,22 +371,20 @@
 
                                 if (event.stage === 'error') {
                                     throw new Error(event.message);
-                                } else if (event.data) {
-                                    result = event.data;
-                                } else if (event.attachment_ids) {
-                                    // Save attachment IDs
-                                    uploadedAttachments = event.attachment_ids || [];
+                                } else if (event.visit_date || event.hospital || event.diagnosis) {
+                                    // Final result (flattened from ProgressComplete)
+                                    result = event;
+                                    if (event.attachment_ids) {
+                                        uploadedAttachments = event.attachment_ids;
+                                    }
+                                } else if (event.stage === 'complete') {
+                                    // Progress complete event, ignore
                                 } else {
+                                    // Progress update
                                     updateProgress(event.message, event.progress);
                                 }
                             } catch (parseErr) {
-                                // Try parse as final result
-                                try {
-                                    const finalData = JSON.parse(data);
-                                    if (finalData.visit_date || finalData.hospital) {
-                                        result = finalData;
-                                    }
-                                } catch (e) {}
+                                console.log('SSE parse error:', parseErr, data);
                             }
                         }
                     }
