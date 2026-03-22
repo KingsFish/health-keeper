@@ -375,7 +375,7 @@
 
                                 if (event.stage === 'error') {
                                     throw new Error(event.message);
-                                } else if (event.visit_date || event.hospital || event.diagnosis) {
+                                } else if (event.attachment_ids || event.visit_date || event.hospital || event.diagnosis || event.ocr_text) {
                                     // Final result (flattened from ProgressComplete)
                                     result = event;
                                     if (event.attachment_ids) {
@@ -507,11 +507,8 @@
                                         </div>
                                     </div>
                                     <div class="flex gap-2">
-                                        ${!a.has_ocr ? `<button onclick="runOcr('${a.id}')" class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded text-sm hover:bg-yellow-200">OCR</button>` : ''}
-                                        ${a.has_ocr && !a.has_extraction ? `<button onclick="runExtract('${a.id}')" class="px-3 py-1 bg-green-100 text-green-800 rounded text-sm hover:bg-green-200">提取</button>` : ''}
                                         ${a.has_extraction ? `<button onclick="viewExtraction('${a.id}')" class="px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm hover:bg-blue-200">查看</button>` : ''}
-                                        ${a.has_ocr ? `<button onclick="viewOcr('${a.id}')" class="px-3 py-1 bg-gray-100 text-gray-800 rounded text-sm hover:bg-gray-200">OCR</button>` : ''}
-                                        <a href="/data/${a.file_path}" target="_blank" class="px-3 py-1 bg-gray-100 text-gray-800 rounded text-sm hover:bg-gray-200">查看</a>
+                                        <a href="/data/${a.file_path}" target="_blank" class="px-3 py-1 bg-gray-100 text-gray-800 rounded text-sm hover:bg-gray-200">文件</a>
                                     </div>
                                 </div>
                             `).join('')}
