@@ -706,7 +706,8 @@ async fn quick_import(
     mut multipart: Multipart,
 ) -> Sse<impl Stream<Item = Result<Event, axum::Error>>> {
     let mut person_id: Option<String> = None;
-    let mut files: Vec<(Vec<u8>, Option<String>)> = Vec::new();
+    // (data, content_type, original_filename)
+    let mut files: Vec<(Vec<u8>, Option<String>, Option<String>)> = Vec::new();
 
     // Parse multipart form
     println!("[DEBUG] 开始解析 multipart 表单...");
@@ -720,9 +721,10 @@ async fn quick_import(
             }
             "files" => {
                 let ct = field.content_type().map(|s| s.to_string());
+                let original_name = field.file_name().map(|s| s.to_string());
                 if let Ok(data) = field.bytes().await {
-                    println!("[DEBUG] 收到文件, 大小: {} bytes, 类型: {:?}", data.len(), ct);
-                    files.push((data.to_vec(), ct));
+                    println!("[DEBUG] 收到文件, 大小: {} bytes, 类型: {:?}, 原始文件名: {:?}", data.len(), ct, original_name);
+                    files.push((data.to_vec(), ct, original_name));
                 }
             }
             _ => {}
@@ -796,18 +798,30 @@ async fn quick_import(
         let ocr_progress_range = 50; // 20% -> 70%
 
         // Save files and run OCR
-        for (i, (file_data, content_type)) in files.iter().enumerate() {
+        for (i, (file_data, content_type, original_filename)) in files.iter().enumerate() {
             let file_num = i + 1;
             let progress = base_progress + (file_num * ocr_progress_range / total_files) as u8;
 
-            // Save file first
-            let file_name = format!("quick_import_{}", i);
-            let ext = match content_type.as_deref() {
-                Some("application/pdf") => "pdf",
-                Some("image/png") => "png",
-                Some("image/gif") => "gif",
-                Some("image/webp") => "webp",
-                _ => "jpg",
+            // Get file extension from original filename or content type
+            let ext = if let Some(name) = original_filename {
+                std::path::Path::new(name)
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or_else(|| match content_type.as_deref() {
+                        Some("application/pdf") => "pdf",
+                        Some("image/png") => "png",
+                        Some("image/gif") => "gif",
+                        Some("image/webp") => "webp",
+                        _ => "jpg",
+                    })
+            } else {
+                match content_type.as_deref() {
+                    Some("application/pdf") => "pdf",
+                    Some("image/png") => "png",
+                    Some("image/gif") => "gif",
+                    Some("image/webp") => "webp",
+                    _ => "jpg",
+                }
             };
 
             // Calculate hash
@@ -843,7 +857,7 @@ async fn quick_import(
             attachment.file_hash = Some(hash);
             attachment.file_size = Some(file_data.len() as i64);
             attachment.mime_type = content_type.clone();
-            attachment.original_filename = Some(file_name.clone());
+            attachment.original_filename = original_filename.clone();
 
             let attachment_id = match state.storage.create_attachment(&attachment).await {
                 Ok(id) => id,
