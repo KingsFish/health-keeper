@@ -175,7 +175,10 @@ struct MedicationResponse {
 
 #[derive(Debug, Deserialize)]
 struct SearchQuery {
-    q: String,
+    q: Option<String>,
+    person_id: Option<String>,
+    hospital: Option<String>,
+    doctor: Option<String>,
 }
 
 // ==================== Handlers ====================
@@ -684,7 +687,16 @@ async fn search(
     State(state): State<Arc<AppState>>,
     Query(query): Query<SearchQuery>,
 ) -> Json<Vec<VisitResponse>> {
-    let visits = state.storage.search(&query.q).await.unwrap_or_default();
+    use health_keeper_core::storage::VisitFilters;
+
+    let filters = VisitFilters {
+        query: query.q,
+        person_id: query.person_id,
+        hospital: query.hospital,
+        doctor: query.doctor,
+    };
+
+    let visits = state.storage.search_visits(filters).await.unwrap_or_default();
 
     let responses: Vec<VisitResponse> = visits.into_iter().map(|v| VisitResponse {
         id: v.id,

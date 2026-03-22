@@ -22,12 +22,34 @@
 
         <!-- Search Bar -->
         <div class="bg-white rounded-lg shadow p-4 mb-6">
-            <div class="flex gap-4">
+            <div class="flex gap-4 mb-4">
                 <input type="text" id="searchInput" placeholder="搜索病历、诊断、药物..."
                     class="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <button onclick="search()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
                     搜索
                 </button>
+                <button onclick="toggleFilters()" class="border px-4 py-2 rounded-lg hover:bg-gray-50">
+                    <span id="filterToggleText">高级筛选</span>
+                </button>
+            </div>
+            <!-- Filters -->
+            <div id="filtersPanel" class="hidden grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">成员</label>
+                    <select id="filterPerson" class="w-full border rounded-lg px-3 py-2">
+                        <option value="">全部成员</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">医院</label>
+                    <input type="text" id="filterHospital" placeholder="输入医院名称" class="w-full border rounded-lg px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">医生</label>
+                    <select id="filterDoctor" class="w-full border rounded-lg px-3 py-2">
+                        <option value="">全部医生</option>
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -207,6 +229,7 @@
     <script>
         const API = '';
         let persons = [];
+        let doctors = [];
         let currentVisitId = null;
         let uploadedAttachments = []; // 保存已上传的附件信息
 
@@ -227,12 +250,33 @@
             persons = await fetchAPI('/api/persons');
             renderPersons();
             updatePersonSelect();
+            updateFilterSelects(); // Update filter dropdowns when visible
         }
 
         async function loadVisits(personId = null) {
             const url = personId ? `/api/visits?person_id=${personId}` : '/api/visits';
             const visits = await fetchAPI(url);
             renderVisits(visits);
+
+            // Extract unique doctors from visits
+            const doctorSet = new Set();
+            visits.forEach(v => {
+                if (v.doctor) {
+                    doctorSet.add(v.doctor);
+                }
+            });
+            doctors = Array.from(doctorSet).sort();
+
+            updateFilterSelects(); // Update filter dropdowns when visible
+        }
+
+        // Update all filter dropdowns if the panel is visible
+        function updateFilterSelects() {
+            const panel = document.getElementById('filtersPanel');
+            if (!panel.classList.contains('hidden')) {
+                updateFilterPersonSelect();
+                updateFilterDoctorSelect();
+            }
         }
 
         // ==================== Render ====================
@@ -628,10 +672,70 @@
         // ==================== Search ====================
         async function search() {
             const query = document.getElementById('searchInput').value.trim();
-            if (!query) return;
+            const personId = document.getElementById('filterPerson').value;
+            const hospital = document.getElementById('filterHospital').value.trim();
+            const doctor = document.getElementById('filterDoctor').value;
 
-            const results = await fetchAPI(`/api/search?q=${encodeURIComponent(query)}`);
+            // Build query string
+            const params = new URLSearchParams();
+            if (query) params.append('q', query);
+            if (personId) params.append('person_id', personId);
+            if (hospital) params.append('hospital', hospital);
+            if (doctor) params.append('doctor', doctor);
+
+            const queryString = params.toString();
+            if (!queryString) {
+                loadVisits();
+                return;
+            }
+
+            const results = await fetchAPI(`/api/search?${queryString}`);
             renderVisits(results);
+        }
+
+        function toggleFilters() {
+            const panel = document.getElementById('filtersPanel');
+            const text = document.getElementById('filterToggleText');
+            if (panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden');
+                text.textContent = '隐藏筛选';
+                updateFilterPersonSelect();
+                updateFilterDoctorSelect();
+            } else {
+                panel.classList.add('hidden');
+                text.textContent = '高级筛选';
+            }
+        }
+
+        function updateFilterPersonSelect() {
+            const select = document.getElementById('filterPerson');
+            select.innerHTML = '<option value="">全部成员</option>';
+            persons.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.id;
+                option.textContent = p.name;
+                select.appendChild(option);
+            });
+        }
+
+        function updateFilterDoctorSelect() {
+            const select = document.getElementById('filterDoctor');
+            select.innerHTML = '<option value="">全部医生</option>';
+            doctors.forEach(d => {
+                const option = document.createElement('option');
+                option.value = d;
+                option.textContent = d;
+                select.appendChild(option);
+            });
+        }
+
+        // Clear filters
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('filterPerson').value = '';
+            document.getElementById('filterHospital').value = '';
+            document.getElementById('filterDoctor').value = '';
+            loadVisits();
         }
 
         document.getElementById('searchInput').addEventListener('keypress', (e) => {
