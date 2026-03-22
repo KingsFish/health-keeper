@@ -46,10 +46,7 @@
             <div class="lg:col-span-2 bg-white rounded-lg shadow">
                 <div class="p-4 border-b flex justify-between items-center">
                     <h2 class="text-lg font-semibold">就诊记录</h2>
-                    <div class="flex gap-2">
-                        <button onclick="showQuickImportModal()" class="text-green-600 hover:text-green-800 font-medium">📷 快速录入</button>
-                        <button onclick="showVisitModal()" class="text-blue-600 hover:text-blue-800">+ 手动添加</button>
-                    </div>
+                    <button onclick="showVisitModal()" class="text-blue-600 hover:text-blue-800 font-medium">+ 添加记录</button>
                 </div>
                 <div id="visitsList" class="divide-y max-h-[600px] overflow-y-auto"></div>
             </div>
@@ -110,26 +107,52 @@
 
         <!-- Add Visit Modal -->
         <div id="visitModal" class="modal fixed inset-0 bg-black/50 items-center justify-center z-50">
-            <div class="bg-white rounded-lg max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
                 <div class="p-4 border-b">
                     <h3 class="text-lg font-semibold">添加就诊记录</h3>
                 </div>
                 <form id="visitForm" class="p-4 space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">患者 *</label>
-                        <select name="person_id" required id="visitPersonSelect" class="w-full border rounded-lg px-3 py-2"></select>
+                    <!-- 快速录入区域 -->
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="font-medium text-green-800">📷 快速录入</h4>
+                            <span class="text-sm text-green-600">上传病历自动识别</span>
+                        </div>
+                        <div class="flex gap-2 items-start">
+                            <input type="file" id="quickImportFiles" accept="image/*,.pdf" multiple class="flex-1 border rounded-lg px-3 py-2 text-sm">
+                            <button type="button" onclick="quickImportFromForm()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm whitespace-nowrap">识别</button>
+                        </div>
+                        <div id="quickImportProgress" class="hidden mt-3">
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div id="progressBarFill" class="bg-green-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                            <div id="progressMessage" class="text-sm text-gray-600 mt-1"></div>
+                        </div>
+                        <div id="uploadedFiles" class="mt-2 text-sm text-gray-500"></div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">就诊日期 *</label>
-                        <input type="date" name="visit_date" required class="w-full border rounded-lg px-3 py-2">
+
+                    <hr class="my-2">
+
+                    <!-- 表单字段 -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">患者 *</label>
+                            <select name="person_id" required id="visitPersonSelect" class="w-full border rounded-lg px-3 py-2"></select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">就诊日期 *</label>
+                            <input type="date" name="visit_date" required class="w-full border rounded-lg px-3 py-2">
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">医院</label>
-                        <input type="text" name="hospital" class="w-full border rounded-lg px-3 py-2">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">科室</label>
-                        <input type="text" name="department" class="w-full border rounded-lg px-3 py-2">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">医院</label>
+                            <input type="text" name="hospital" class="w-full border rounded-lg px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">科室</label>
+                            <input type="text" name="department" class="w-full border rounded-lg px-3 py-2">
+                        </div>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">医生</label>
@@ -143,7 +166,11 @@
                         <label class="block text-sm font-medium text-gray-700 mb-1">诊断</label>
                         <textarea name="diagnosis" rows="2" class="w-full border rounded-lg px-3 py-2"></textarea>
                     </div>
-                    <div class="flex justify-end gap-2">
+
+                    <!-- 隐藏字段：保存已上传的附件ID -->
+                    <input type="hidden" id="uploadedAttachmentIds" value="">
+
+                    <div class="flex justify-end gap-2 pt-2">
                         <button type="button" onclick="closeVisitModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">取消</button>
                         <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">保存</button>
                     </div>
@@ -171,42 +198,13 @@
                 </form>
             </div>
         </div>
-
-        <!-- Quick Import Modal -->
-        <div id="quickImportModal" class="modal fixed inset-0 bg-black/50 items-center justify-center z-50">
-            <div class="bg-white rounded-lg max-w-md w-full mx-4">
-                <div class="p-4 border-b">
-                    <h3 class="text-lg font-semibold">📷 快速录入</h3>
-                </div>
-                <form id="quickImportForm" class="p-4 space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">患者 *</label>
-                        <select name="person_id" required id="quickImportPersonSelect" class="w-full border rounded-lg px-3 py-2"></select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">病历/检查报告 *</label>
-                        <input type="file" name="files" accept="image/*,.pdf" multiple required class="w-full border rounded-lg px-3 py-2">
-                    </div>
-                    <div class="text-sm text-gray-500">支持上传多个文件，AI 将自动识别并提取信息</div>
-                    <div id="quickImportProgress" class="hidden">
-                        <div class="flex items-center gap-2 text-blue-600">
-                            <svg class="loading h-5 w-5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" stroke-dasharray="60" stroke-dashoffset="20"></circle></svg>
-                            <span id="quickImportStatus">正在识别...</span>
-                        </div>
-                    </div>
-                    <div class="flex justify-end gap-2">
-                        <button type="button" onclick="closeQuickImportModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">取消</button>
-                        <button type="submit" id="quickImportSubmit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">开始识别</button>
-                    </div>
-                </form>
-            </div>
-        </div>
     </div>
 
     <script>
         const API = '';
         let persons = [];
         let currentVisitId = null;
+        let uploadedAttachments = []; // 保存已上传的附件信息
 
         // ==================== API Calls ====================
         async function fetchAPI(url, options = {}) {
@@ -309,12 +307,6 @@
         }
 
         // ==================== Visit Actions ====================
-        function showVisitModal() {
-            document.getElementById('visitModal').classList.add('active');
-            document.getElementById('visitForm').reset();
-            updatePersonSelect();
-        }
-
         function closeVisitModal() {
             document.getElementById('visitModal').classList.remove('active');
         }
@@ -324,27 +316,10 @@
             select.innerHTML = persons.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
         }
 
-        // ==================== Quick Import ====================
-        function showQuickImportModal() {
-            document.getElementById('quickImportModal').classList.add('active');
-            document.getElementById('quickImportForm').reset();
-            document.getElementById('quickImportProgress').classList.add('hidden');
-            document.getElementById('quickImportSubmit').disabled = false;
-
-            // Update person select
-            const select = document.getElementById('quickImportPersonSelect');
-            select.innerHTML = persons.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-        }
-
-        function closeQuickImportModal() {
-            document.getElementById('quickImportModal').classList.remove('active');
-        }
-
-        document.getElementById('quickImportForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const form = e.target;
-            const files = form.files.files;
-            const personId = form.person_id.value;
+        // ==================== Quick Import from Form ====================
+        async function quickImportFromForm() {
+            const fileInput = document.getElementById('quickImportFiles');
+            const files = fileInput.files;
 
             if (!files || files.length === 0) {
                 alert('请选择文件');
@@ -353,25 +328,13 @@
 
             // Show progress
             document.getElementById('quickImportProgress').classList.remove('hidden');
-            document.getElementById('quickImportSubmit').disabled = true;
-            document.getElementById('quickImportStatus').textContent = '上传文件中...';
-
-            // Progress bar element
-            const progressBar = document.getElementById('quickImportProgress');
-            progressBar.innerHTML = `
-                <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
-                    <div id="progressBarFill" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-                </div>
-                <div id="progressMessage" class="text-sm text-gray-600"></div>
-            `;
-
             const updateProgress = (message, percent) => {
                 document.getElementById('progressBarFill').style.width = percent + '%';
                 document.getElementById('progressMessage').textContent = message;
             };
+            updateProgress('上传文件中...', 5);
 
             const formData = new FormData();
-            formData.append('person_id', personId);
             for (let i = 0; i < files.length; i++) {
                 formData.append('files', files[i]);
             }
@@ -396,7 +359,7 @@
 
                     buffer += decoder.decode(value, { stream: true });
                     const lines = buffer.split('\n');
-                    buffer = lines.pop(); // Keep incomplete line in buffer
+                    buffer = lines.pop();
 
                     for (const line of lines) {
                         if (line.startsWith('data:')) {
@@ -408,34 +371,31 @@
 
                                 if (event.stage === 'error') {
                                     throw new Error(event.message);
-                                } else if (event.stage === 'complete') {
-                                    result = event;
                                 } else if (event.data) {
-                                    // Final result with data field
-                                    result = event;
+                                    result = event.data;
+                                } else if (event.attachment_ids) {
+                                    // Save attachment IDs
+                                    uploadedAttachments = event.attachment_ids || [];
                                 } else {
-                                    // Progress update
                                     updateProgress(event.message, event.progress);
                                 }
                             } catch (parseErr) {
-                                console.log('Parse err:', parseErr, data);
+                                // Try parse as final result
+                                try {
+                                    const finalData = JSON.parse(data);
+                                    if (finalData.visit_date || finalData.hospital) {
+                                        result = finalData;
+                                    }
+                                } catch (e) {}
                             }
                         }
                     }
                 }
 
-                if (result && result.data) {
+                if (result) {
                     updateProgress('识别完成！', 100);
-                    setTimeout(() => {
-                        closeQuickImportModal();
-                        showVisitModalWithPrefill(personId, result.data);
-                    }, 500);
-                } else if (result) {
-                    updateProgress('识别完成！', 100);
-                    setTimeout(() => {
-                        closeQuickImportModal();
-                        showVisitModalWithPrefill(personId, result);
-                    }, 500);
+                    prefillVisitForm(result);
+                    updateUploadedFilesList(files);
                 } else {
                     throw new Error('未收到识别结果');
                 }
@@ -443,14 +403,11 @@
             } catch (err) {
                 alert('识别失败: ' + err.message);
                 document.getElementById('quickImportProgress').classList.add('hidden');
-                document.getElementById('quickImportSubmit').disabled = false;
             }
-        });
+        }
 
-        function showVisitModalWithPrefill(personId, data) {
-            showVisitModal();
+        function prefillVisitForm(data) {
             const visitForm = document.getElementById('visitForm');
-            visitForm.person_id.value = personId;
 
             if (data.visit_date) {
                 visitForm.visit_date.value = data.visit_date;
@@ -465,6 +422,27 @@
             if (data.diagnosis) visitForm.diagnosis.value = data.diagnosis;
         }
 
+        function updateUploadedFilesList(files) {
+            const container = document.getElementById('uploadedFiles');
+            container.innerHTML = `<span class="text-green-700">✓ 已上传 ${files.length} 个文件，识别结果已填入表单</span>`;
+        }
+
+        // ==================== Visit Form ====================
+        function showVisitModal() {
+            document.getElementById('visitModal').classList.add('active');
+            document.getElementById('visitForm').reset();
+            document.getElementById('quickImportProgress').classList.add('hidden');
+            document.getElementById('uploadedFiles').innerHTML = '';
+            uploadedAttachments = [];
+            updatePersonSelect();
+            // Set default date
+            document.getElementById('visitForm').visit_date.value = new Date().toISOString().split('T')[0];
+        }
+
+        function closeVisitModal() {
+            document.getElementById('visitModal').classList.remove('active');
+        }
+
         document.getElementById('visitForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const form = e.target;
@@ -475,7 +453,8 @@
                 department: form.department.value || null,
                 doctor: form.doctor.value || null,
                 chief_complaint: form.chief_complaint.value || null,
-                diagnosis: form.diagnosis.value || null
+                diagnosis: form.diagnosis.value || null,
+                attachment_ids: uploadedAttachments
             };
             try {
                 await fetchAPI('/api/visits', { method: 'POST', body: JSON.stringify(data) });

@@ -82,6 +82,8 @@ struct CreateVisitRequest {
     diagnosis: Option<String>,
     treatment: Option<String>,
     notes: Option<String>,
+    #[serde(default)]
+    attachment_ids: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -149,6 +151,7 @@ struct QuickImportResponse {
     follow_up: Option<String>,
     summary: Option<String>,
     ocr_text: String,
+    attachment_ids: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -303,8 +306,17 @@ async fn create_visit(
     visit.treatment = req.treatment;
     visit.notes = req.notes;
 
-    match state.storage.create_visit(&visit).await {
-        Ok(_) => Ok(Json(VisitResponse {
+    // Create visit
+    state.storage.create_visit(&visit).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Link attachments to visit
+    for attachment_id in &req.attachment_ids {
+        if let Err(e) = state.storage.update_attachment_visit(attachment_id, &visit.id).await {
+            eprintln!("[WARN] Failed to link attachment {}: {}", attachment_id, e);
+        }
+    }
+
+    Ok(Json(VisitResponse {
             id: visit.id,
             person_id: visit.person_id,
             visit_date: visit.visit_date.to_string(),
@@ -318,9 +330,7 @@ async fn create_visit(
             created_at: visit.created_at.to_rfc3339(),
             updated_at: visit.updated_at.to_rfc3339(),
             attachments: vec![],
-        })),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
+    }))
 }
 
 async fn get_visit(
@@ -788,12 +798,69 @@ async fn quick_import(
 
         // Run OCR on each file
         let mut all_ocr_texts = Vec::new();
+        let mut attachment_ids: Vec<String> = Vec::new();
         let base_progress = 20;
         let ocr_progress_range = 50; // 20% -> 70%
 
+        // Save files and run OCR
         for (i, (file_data, content_type)) in files.iter().enumerate() {
             let file_num = i + 1;
             let progress = base_progress + (file_num * ocr_progress_range / total_files) as u8;
+
+            // Save file first
+            let file_name = format!("quick_import_{}", i);
+            let ext = match content_type.as_deref() {
+                Some("application/pdf") => "pdf",
+                Some("image/png") => "png",
+                Some("image/gif") => "gif",
+                Some("image/webp") => "webp",
+                _ => "jpg",
+            };
+
+            // Calculate hash
+            use sha2::{Digest, Sha256};
+            let mut hasher = Sha256::new();
+            hasher.update(file_data);
+            let hash = hex::encode(hasher.finalize());
+
+            let stored_name = format!("{}.{}", hash, ext);
+            let relative_path = format!("attachments/{}", stored_name);
+
+            // Save to disk
+            let data_dir = std::path::Path::new("./data");
+            let attachments_dir = data_dir.join("attachments");
+            if let Err(e) = std::fs::create_dir_all(&attachments_dir) {
+                yield error_event(&format!("创建目录失败: {}", e));
+                return;
+            }
+
+            let dest_path = attachments_dir.join(&stored_name);
+            if let Err(e) = std::fs::write(&dest_path, file_data) {
+                yield error_event(&format!("保存文件失败: {}", e));
+                return;
+            }
+
+            // Create attachment record (without visit_id)
+            let attachment = health_keeper_core::models::Attachment::new(
+                String::new(), // Empty visit_id, will be linked later
+                relative_path.clone(),
+                health_keeper_core::models::AttachmentType::MedicalRecord,
+            );
+            let mut attachment = attachment;
+            attachment.file_hash = Some(hash);
+            attachment.file_size = Some(file_data.len() as i64);
+            attachment.mime_type = content_type.clone();
+            attachment.original_filename = Some(file_name.clone());
+
+            let attachment_id = match state.storage.create_attachment(&attachment).await {
+                Ok(id) => id,
+                Err(e) => {
+                    yield error_event(&format!("保存附件记录失败: {}", e));
+                    return;
+                }
+            };
+            attachment_ids.push(attachment_id);
+            println!("[DEBUG] 保存附件: {}", attachment_ids.last().unwrap());
 
             yield Ok(Event::default().json_data(ProgressEvent {
                 stage: "ocr".to_string(),
@@ -937,6 +1004,7 @@ async fn quick_import(
                 follow_up: extraction.follow_up,
                 summary: extraction.summary,
                 ocr_text: combined_text,
+                attachment_ids,
             },
         }).unwrap());
     };

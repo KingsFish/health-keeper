@@ -384,6 +384,15 @@ impl Storage for SqliteStorage {
             .collect())
     }
 
+    async fn update_attachment_visit(&self, attachment_id: &str, visit_id: &str) -> Result<(), StorageError> {
+        sqlx::query("UPDATE attachments SET visit_id = ? WHERE id = ?")
+            .bind(visit_id)
+            .bind(attachment_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
     async fn delete_attachment(&self, id: &str) -> Result<(), StorageError> {
         let result = sqlx::query("DELETE FROM attachments WHERE id = ?")
             .bind(id)
