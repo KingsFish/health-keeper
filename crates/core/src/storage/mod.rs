@@ -28,6 +28,15 @@ pub enum StorageError {
     Migration(String),
 }
 
+/// Search filters for visits
+#[derive(Debug, Default, Clone)]
+pub struct VisitFilters {
+    pub query: Option<String>,
+    pub person_id: Option<String>,
+    pub hospital: Option<String>,
+    pub doctor: Option<String>,
+}
+
 /// Storage provider trait - defines the interface for data persistence
 #[async_trait]
 pub trait Storage: Send + Sync {
@@ -71,6 +80,7 @@ pub trait Storage: Send + Sync {
 
     // Search operations
     async fn search(&self, query: &str) -> Result<Vec<Visit>, StorageError>;
+    async fn search_visits(&self, filters: VisitFilters) -> Result<Vec<Visit>, StorageError>;
 
     // Database operations
     async fn migrate(&self) -> Result<(), StorageError>;

@@ -5,7 +5,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
 use sqlx::Row;
 
-use super::{Storage, StorageError};
+use super::{Storage, StorageError, VisitFilters};
 use crate::models::{
     Attachment, AttachmentType, ExtractedData, ExtractedDataType, Gender, OcrResult, Person,
     Relationship, Visit,
@@ -539,6 +539,59 @@ impl Storage for SqliteStorage {
                 updated_at: row.get("updated_at"),
             })
             .collect())
+    }
+
+    async fn search_visits(&self, filters: VisitFilters) -> Result<Vec<Visit>, StorageError> {
+        // Get all visits first, then filter in memory
+        let all_visits = if let Some(ref query) = filters.query {
+            if !query.is_empty() {
+                // Use FTS for text search
+                self.search(query).await?
+            } else {
+                self.list_visits(None).await?
+            }
+        } else {
+            self.list_visits(None).await?
+        };
+
+        // Apply filters
+        let filtered: Vec<Visit> = all_visits.into_iter().filter(|v| {
+            let mut matches = true;
+
+            if let Some(ref person_id) = filters.person_id {
+                if !person_id.is_empty() && v.person_id != *person_id {
+                    matches = false;
+                }
+            }
+
+            if let Some(ref hospital) = filters.hospital {
+                if !hospital.is_empty() {
+                    if let Some(ref v_hospital) = v.hospital {
+                        if !v_hospital.to_lowercase().contains(&hospital.to_lowercase()) {
+                            matches = false;
+                        }
+                    } else {
+                        matches = false;
+                    }
+                }
+            }
+
+            if let Some(ref doctor) = filters.doctor {
+                if !doctor.is_empty() {
+                    if let Some(ref v_doctor) = v.doctor {
+                        if !v_doctor.to_lowercase().contains(&doctor.to_lowercase()) {
+                            matches = false;
+                        }
+                    } else {
+                        matches = false;
+                    }
+                }
+            }
+
+            matches
+        }).collect();
+
+        Ok(filtered)
     }
 
     async fn migrate(&self) -> Result<(), StorageError> {
