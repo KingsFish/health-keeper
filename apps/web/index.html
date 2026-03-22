@@ -250,6 +250,7 @@
             persons = await fetchAPI('/api/persons');
             renderPersons();
             updatePersonSelect();
+            updateFilterSelects(); // Update filter dropdowns when visible
         }
 
         async function loadVisits(personId = null) {
@@ -266,9 +267,14 @@
             });
             doctors = Array.from(doctorSet).sort();
 
-            // Update doctor filter if panel is visible
+            updateFilterSelects(); // Update filter dropdowns when visible
+        }
+
+        // Update all filter dropdowns if the panel is visible
+        function updateFilterSelects() {
             const panel = document.getElementById('filtersPanel');
             if (!panel.classList.contains('hidden')) {
+                updateFilterPersonSelect();
                 updateFilterDoctorSelect();
             }
         }
