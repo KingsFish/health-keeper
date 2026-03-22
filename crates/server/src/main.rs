@@ -394,10 +394,22 @@ async fn delete_visit(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> Result<StatusCode, StatusCode> {
-    match state.storage.delete_visit(&id).await {
-        Ok(_) => Ok(StatusCode::NO_CONTENT),
-        Err(_) => Err(StatusCode::NOT_FOUND),
+    // First get attachments to delete files from disk
+    let attachments = state.storage.list_attachments(&id).await.unwrap_or_default();
+
+    // Delete attachment files from disk
+    for attachment in &attachments {
+        let file_path = std::path::Path::new("./data").join(&attachment.file_path);
+        if file_path.exists() {
+            if let Err(e) = std::fs::remove_file(&file_path) {
+                eprintln!("[WARN] Failed to delete file {:?}: {}", file_path, e);
+            }
+        }
     }
+
+    // Then delete the visit (cascade will delete attachments from DB)
+    state.storage.delete_visit(&id).await.map_err(|_| StatusCode::NOT_FOUND)?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn upload_attachment(
