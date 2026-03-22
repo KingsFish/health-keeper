@@ -217,7 +217,9 @@
                 headers: { 'Content-Type': 'application/json', ...options.headers }
             });
             if (!res.ok) throw new Error('API Error');
-            return res.json();
+            // Handle empty responses (like 204 No Content)
+            const text = await res.text();
+            return text ? JSON.parse(text) : null;
         }
 
         // ==================== Load Data ====================
