@@ -531,7 +531,11 @@
 
         async function deleteVisit(id) {
             if (!confirm('确定删除该就诊记录？')) return;
-            await fetchAPI(`/api/visits/${id}`, { method: 'DELETE' });
+            try {
+                await fetchAPI(`/api/visits/${id}`, { method: 'DELETE' });
+            } catch (e) {
+                console.error('删除失败:', e);
+            }
             closeVisitDetail();
             loadVisits();
         }
