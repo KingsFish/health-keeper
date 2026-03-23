@@ -1,14 +1,13 @@
 //! SQLite storage implementation
 
 use async_trait::async_trait;
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::NaiveDate;
 use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
 use sqlx::Row;
 
 use super::{Storage, StorageError, VisitFilters};
 use crate::models::{
-    Attachment, AttachmentType, ExtractedData, ExtractedDataType, Gender, OcrResult, Person,
-    Relationship, Visit,
+    Attachment, ExtractedData, ExtractedDataType, OcrResult, Person, Visit,
 };
 
 /// SQLite-based storage implementation
@@ -31,6 +30,30 @@ impl SqliteStorage {
     pub async fn new_in_memory() -> Result<Self, StorageError> {
         Self::new("sqlite::memory:").await
     }
+
+    /// Helper function to build Person from a database row
+    fn row_to_person(row: &sqlx::sqlite::SqliteRow) -> Person {
+        Person {
+            id: row.get("id"),
+            name: row.get("name"),
+            relationship: row.get::<String, _>("relationship").parse().unwrap_or_default(),
+            birth_date: row.get("birth_date"),
+            gender: row.get::<Option<String>, _>("gender").and_then(|g| g.parse().ok()),
+            blood_type: row.get::<Option<String>, _>("blood_type").and_then(|b| b.parse().ok()),
+            allergies: row.get::<Option<String>, _>("allergies").and_then(|a| serde_json::from_str(&a).ok()),
+            notes: row.get("notes"),
+            chronic_diseases: row.get::<Option<String>, _>("chronic_diseases").and_then(|d| serde_json::from_str(&d).ok()),
+            past_surgeries: row.get::<Option<String>, _>("past_surgeries").and_then(|s| serde_json::from_str(&s).ok()),
+            hospitalizations: row.get::<Option<String>, _>("hospitalizations").and_then(|h| serde_json::from_str(&h).ok()),
+            major_illnesses: row.get::<Option<String>, _>("major_illnesses").and_then(|i| serde_json::from_str(&i).ok()),
+            family_history: row.get::<Option<String>, _>("family_history").and_then(|f| serde_json::from_str(&f).ok()),
+            current_medications: row.get::<Option<String>, _>("current_medications").and_then(|m| serde_json::from_str(&m).ok()),
+            lifestyle: row.get::<Option<String>, _>("lifestyle").and_then(|l| serde_json::from_str(&l).ok()),
+            body_measurements: row.get::<Option<String>, _>("body_measurements").and_then(|b| serde_json::from_str(&b).ok()),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        }
+    }
 }
 
 #[async_trait]
@@ -41,11 +64,46 @@ impl Storage for SqliteStorage {
             .allergies
             .as_ref()
             .map(|a| serde_json::to_string(a).unwrap_or_default());
+        let chronic_diseases = person
+            .chronic_diseases
+            .as_ref()
+            .map(|d| serde_json::to_string(d).unwrap_or_default());
+        let past_surgeries = person
+            .past_surgeries
+            .as_ref()
+            .map(|s| serde_json::to_string(s).unwrap_or_default());
+        let hospitalizations = person
+            .hospitalizations
+            .as_ref()
+            .map(|h| serde_json::to_string(h).unwrap_or_default());
+        let major_illnesses = person
+            .major_illnesses
+            .as_ref()
+            .map(|i| serde_json::to_string(i).unwrap_or_default());
+        let family_history = person
+            .family_history
+            .as_ref()
+            .map(|f| serde_json::to_string(f).unwrap_or_default());
+        let current_medications = person
+            .current_medications
+            .as_ref()
+            .map(|m| serde_json::to_string(m).unwrap_or_default());
+        let lifestyle = person
+            .lifestyle
+            .as_ref()
+            .map(|l| serde_json::to_string(l).unwrap_or_default());
+        let body_measurements = person
+            .body_measurements
+            .as_ref()
+            .map(|b| serde_json::to_string(b).unwrap_or_default());
 
         sqlx::query(
             r#"
-            INSERT INTO persons (id, name, relationship, birth_date, gender, blood_type, allergies, notes, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO persons (id, name, relationship, birth_date, gender, blood_type, allergies, notes,
+                                 chronic_diseases, past_surgeries, hospitalizations, major_illnesses,
+                                 family_history, current_medications, lifestyle, body_measurements,
+                                 created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(&id)
@@ -56,6 +114,14 @@ impl Storage for SqliteStorage {
         .bind(person.blood_type.as_ref().map(|b| b.to_string()))
         .bind(allergies)
         .bind(&person.notes)
+        .bind(chronic_diseases)
+        .bind(past_surgeries)
+        .bind(hospitalizations)
+        .bind(major_illnesses)
+        .bind(family_history)
+        .bind(current_medications)
+        .bind(lifestyle)
+        .bind(body_measurements)
         .bind(person.created_at)
         .bind(person.updated_at)
         .execute(&self.pool)
@@ -71,18 +137,7 @@ impl Storage for SqliteStorage {
             .await?;
 
         match row {
-            Some(row) => Ok(Person {
-                id: row.get("id"),
-                name: row.get("name"),
-                relationship: row.get::<String, _>("relationship").parse().unwrap_or_default(),
-                birth_date: row.get("birth_date"),
-                gender: row.get::<Option<String>, _>("gender").and_then(|g| g.parse().ok()),
-                blood_type: row.get::<Option<String>, _>("blood_type").and_then(|b| b.parse().ok()),
-                allergies: row.get::<Option<String>, _>("allergies").and_then(|a| serde_json::from_str(&a).ok()),
-                notes: row.get("notes"),
-                created_at: row.get("created_at"),
-                updated_at: row.get("updated_at"),
-            }),
+            Some(row) => Ok(Self::row_to_person(&row)),
             None => Err(StorageError::NotFound(format!("Person not found: {}", id))),
         }
     }
@@ -92,21 +147,7 @@ impl Storage for SqliteStorage {
             .fetch_all(&self.pool)
             .await?;
 
-        Ok(rows
-            .into_iter()
-            .map(|row| Person {
-                id: row.get("id"),
-                name: row.get("name"),
-                relationship: row.get::<String, _>("relationship").parse().unwrap_or_default(),
-                birth_date: row.get("birth_date"),
-                gender: row.get::<Option<String>, _>("gender").and_then(|g| g.parse().ok()),
-                blood_type: row.get::<Option<String>, _>("blood_type").and_then(|b| b.parse().ok()),
-                allergies: row.get::<Option<String>, _>("allergies").and_then(|a| serde_json::from_str(&a).ok()),
-                notes: row.get("notes"),
-                created_at: row.get("created_at"),
-                updated_at: row.get("updated_at"),
-            })
-            .collect())
+        Ok(rows.iter().map(|row| Self::row_to_person(row)).collect())
     }
 
     async fn update_person(&self, person: &Person) -> Result<(), StorageError> {
@@ -114,11 +155,45 @@ impl Storage for SqliteStorage {
             .allergies
             .as_ref()
             .map(|a| serde_json::to_string(a).unwrap_or_default());
+        let chronic_diseases = person
+            .chronic_diseases
+            .as_ref()
+            .map(|d| serde_json::to_string(d).unwrap_or_default());
+        let past_surgeries = person
+            .past_surgeries
+            .as_ref()
+            .map(|s| serde_json::to_string(s).unwrap_or_default());
+        let hospitalizations = person
+            .hospitalizations
+            .as_ref()
+            .map(|h| serde_json::to_string(h).unwrap_or_default());
+        let major_illnesses = person
+            .major_illnesses
+            .as_ref()
+            .map(|i| serde_json::to_string(i).unwrap_or_default());
+        let family_history = person
+            .family_history
+            .as_ref()
+            .map(|f| serde_json::to_string(f).unwrap_or_default());
+        let current_medications = person
+            .current_medications
+            .as_ref()
+            .map(|m| serde_json::to_string(m).unwrap_or_default());
+        let lifestyle = person
+            .lifestyle
+            .as_ref()
+            .map(|l| serde_json::to_string(l).unwrap_or_default());
+        let body_measurements = person
+            .body_measurements
+            .as_ref()
+            .map(|b| serde_json::to_string(b).unwrap_or_default());
 
         let result = sqlx::query(
             r#"
             UPDATE persons
-            SET name = ?, relationship = ?, birth_date = ?, gender = ?, blood_type = ?, allergies = ?, notes = ?
+            SET name = ?, relationship = ?, birth_date = ?, gender = ?, blood_type = ?, allergies = ?, notes = ?,
+                chronic_diseases = ?, past_surgeries = ?, hospitalizations = ?, major_illnesses = ?,
+                family_history = ?, current_medications = ?, lifestyle = ?, body_measurements = ?
             WHERE id = ?
             "#,
         )
@@ -129,6 +204,14 @@ impl Storage for SqliteStorage {
         .bind(person.blood_type.as_ref().map(|b| b.to_string()))
         .bind(allergies)
         .bind(&person.notes)
+        .bind(chronic_diseases)
+        .bind(past_surgeries)
+        .bind(hospitalizations)
+        .bind(major_illnesses)
+        .bind(family_history)
+        .bind(current_medications)
+        .bind(lifestyle)
+        .bind(body_measurements)
         .bind(&person.id)
         .execute(&self.pool)
         .await?;
@@ -600,6 +683,7 @@ impl Storage for SqliteStorage {
             include_str!("../../../../migrations/001_init.sql"),
             include_str!("../../../../migrations/002_allow_null_visit_id.sql"),
             include_str!("../../../../migrations/003_add_summary.sql"),
+            include_str!("../../../../migrations/004_add_health_info.sql"),
         ];
 
         for migration_sql in migrations {

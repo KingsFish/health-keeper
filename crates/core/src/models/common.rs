@@ -168,6 +168,111 @@ pub fn generate_id() -> String {
     uuid::Uuid::new_v4().to_string()
 }
 
+/// Disease status for chronic conditions
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DiseaseStatus {
+    Active,
+    Controlled,
+    Remission,
+}
+
+impl std::fmt::Display for DiseaseStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DiseaseStatus::Active => write!(f, "active"),
+            DiseaseStatus::Controlled => write!(f, "controlled"),
+            DiseaseStatus::Remission => write!(f, "remission"),
+        }
+    }
+}
+
+impl std::str::FromStr for DiseaseStatus {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "active" => Ok(DiseaseStatus::Active),
+            "controlled" => Ok(DiseaseStatus::Controlled),
+            "remission" => Ok(DiseaseStatus::Remission),
+            _ => Err(format!("Invalid disease status: {}", s)),
+        }
+    }
+}
+
+impl Default for DiseaseStatus {
+    fn default() -> Self {
+        Self::Active
+    }
+}
+
+/// Smoking status
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SmokingStatus {
+    Never,
+    Former,
+    Current,
+}
+
+impl std::fmt::Display for SmokingStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SmokingStatus::Never => write!(f, "never"),
+            SmokingStatus::Former => write!(f, "former"),
+            SmokingStatus::Current => write!(f, "current"),
+        }
+    }
+}
+
+impl std::str::FromStr for SmokingStatus {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "never" => Ok(SmokingStatus::Never),
+            "former" => Ok(SmokingStatus::Former),
+            "current" => Ok(SmokingStatus::Current),
+            _ => Err(format!("Invalid smoking status: {}", s)),
+        }
+    }
+}
+
+/// Drinking status
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DrinkingStatus {
+    Never,
+    Occasional,
+    Regular,
+    Former,
+}
+
+impl std::fmt::Display for DrinkingStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DrinkingStatus::Never => write!(f, "never"),
+            DrinkingStatus::Occasional => write!(f, "occasional"),
+            DrinkingStatus::Regular => write!(f, "regular"),
+            DrinkingStatus::Former => write!(f, "former"),
+        }
+    }
+}
+
+impl std::str::FromStr for DrinkingStatus {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "never" => Ok(DrinkingStatus::Never),
+            "occasional" => Ok(DrinkingStatus::Occasional),
+            "regular" => Ok(DrinkingStatus::Regular),
+            "former" => Ok(DrinkingStatus::Former),
+            _ => Err(format!("Invalid drinking status: {}", s)),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

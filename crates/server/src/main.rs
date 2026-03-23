@@ -38,6 +38,15 @@ struct CreatePersonRequest {
     blood_type: Option<String>,
     allergies: Option<Vec<String>>,
     notes: Option<String>,
+    // Health information
+    chronic_diseases: Option<Vec<health_keeper_core::models::ChronicDisease>>,
+    past_surgeries: Option<Vec<health_keeper_core::models::PastSurgery>>,
+    hospitalizations: Option<Vec<health_keeper_core::models::Hospitalization>>,
+    major_illnesses: Option<Vec<health_keeper_core::models::MajorIllness>>,
+    family_history: Option<Vec<health_keeper_core::models::FamilyHistoryEntry>>,
+    current_medications: Option<Vec<health_keeper_core::models::LongTermMedication>>,
+    lifestyle: Option<health_keeper_core::models::Lifestyle>,
+    body_measurements: Option<health_keeper_core::models::BodyMeasurements>,
 }
 
 #[derive(Debug, Serialize)]
@@ -50,6 +59,15 @@ struct PersonResponse {
     blood_type: Option<String>,
     allergies: Option<Vec<String>>,
     notes: Option<String>,
+    // Health information
+    chronic_diseases: Option<Vec<health_keeper_core::models::ChronicDisease>>,
+    past_surgeries: Option<Vec<health_keeper_core::models::PastSurgery>>,
+    hospitalizations: Option<Vec<health_keeper_core::models::Hospitalization>>,
+    major_illnesses: Option<Vec<health_keeper_core::models::MajorIllness>>,
+    family_history: Option<Vec<health_keeper_core::models::FamilyHistoryEntry>>,
+    current_medications: Option<Vec<health_keeper_core::models::LongTermMedication>>,
+    lifestyle: Option<health_keeper_core::models::Lifestyle>,
+    body_measurements: Option<health_keeper_core::models::BodyMeasurements>,
     created_at: String,
     updated_at: String,
 }
@@ -65,10 +83,38 @@ impl From<Person> for PersonResponse {
             blood_type: p.blood_type.map(|b| b.to_string()),
             allergies: p.allergies,
             notes: p.notes,
+            chronic_diseases: p.chronic_diseases,
+            past_surgeries: p.past_surgeries,
+            hospitalizations: p.hospitalizations,
+            major_illnesses: p.major_illnesses,
+            family_history: p.family_history,
+            current_medications: p.current_medications,
+            lifestyle: p.lifestyle,
+            body_measurements: p.body_measurements,
             created_at: p.created_at.to_rfc3339(),
             updated_at: p.updated_at.to_rfc3339(),
         }
     }
+}
+
+#[derive(Debug, Deserialize)]
+struct UpdatePersonRequest {
+    name: Option<String>,
+    relationship: Option<String>,
+    birth_date: Option<String>,
+    gender: Option<String>,
+    blood_type: Option<String>,
+    allergies: Option<Vec<String>>,
+    notes: Option<String>,
+    // Health information
+    chronic_diseases: Option<Vec<health_keeper_core::models::ChronicDisease>>,
+    past_surgeries: Option<Vec<health_keeper_core::models::PastSurgery>>,
+    hospitalizations: Option<Vec<health_keeper_core::models::Hospitalization>>,
+    major_illnesses: Option<Vec<health_keeper_core::models::MajorIllness>>,
+    family_history: Option<Vec<health_keeper_core::models::FamilyHistoryEntry>>,
+    current_medications: Option<Vec<health_keeper_core::models::LongTermMedication>>,
+    lifestyle: Option<health_keeper_core::models::Lifestyle>,
+    body_measurements: Option<health_keeper_core::models::BodyMeasurements>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -213,6 +259,31 @@ async fn create_person(
     if let Some(n) = req.notes {
         person.notes = Some(n);
     }
+    // Health information
+    if let Some(cd) = req.chronic_diseases {
+        person.chronic_diseases = Some(cd);
+    }
+    if let Some(ps) = req.past_surgeries {
+        person.past_surgeries = Some(ps);
+    }
+    if let Some(h) = req.hospitalizations {
+        person.hospitalizations = Some(h);
+    }
+    if let Some(mi) = req.major_illnesses {
+        person.major_illnesses = Some(mi);
+    }
+    if let Some(fh) = req.family_history {
+        person.family_history = Some(fh);
+    }
+    if let Some(cm) = req.current_medications {
+        person.current_medications = Some(cm);
+    }
+    if let Some(l) = req.lifestyle {
+        person.lifestyle = Some(l);
+    }
+    if let Some(bm) = req.body_measurements {
+        person.body_measurements = Some(bm);
+    }
 
     match state.storage.create_person(&person).await {
         Ok(_) => Ok(Json(PersonResponse::from(person))),
@@ -237,6 +308,75 @@ async fn delete_person(
     match state.storage.delete_person(&id).await {
         Ok(_) => Ok(StatusCode::NO_CONTENT),
         Err(_) => Err(StatusCode::NOT_FOUND),
+    }
+}
+
+async fn update_person_handler(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    Json(req): Json<UpdatePersonRequest>,
+) -> Result<Json<PersonResponse>, StatusCode> {
+    // Get existing person
+    let mut person = match state.storage.get_person(&id).await {
+        Ok(p) => p,
+        Err(_) => return Err(StatusCode::NOT_FOUND),
+    };
+
+    // Update fields
+    if let Some(name) = req.name {
+        person.name = name;
+    }
+    if let Some(relationship) = req.relationship {
+        if let Ok(r) = relationship.parse() {
+            person.relationship = r;
+        }
+    }
+    if let Some(date) = req.birth_date {
+        person.birth_date = chrono::NaiveDate::parse_from_str(&date, "%Y-%m-%d").ok();
+    }
+    if let Some(gender) = req.gender {
+        person.gender = gender.parse().ok();
+    }
+    if let Some(bt) = req.blood_type {
+        person.blood_type = bt.parse().ok();
+    }
+    if let Some(a) = req.allergies {
+        person.allergies = Some(a);
+    }
+    if let Some(n) = req.notes {
+        person.notes = Some(n);
+    }
+    if let Some(cd) = req.chronic_diseases {
+        person.chronic_diseases = Some(cd);
+    }
+    if let Some(ps) = req.past_surgeries {
+        person.past_surgeries = Some(ps);
+    }
+    if let Some(h) = req.hospitalizations {
+        person.hospitalizations = Some(h);
+    }
+    if let Some(mi) = req.major_illnesses {
+        person.major_illnesses = Some(mi);
+    }
+    if let Some(fh) = req.family_history {
+        person.family_history = Some(fh);
+    }
+    if let Some(cm) = req.current_medications {
+        person.current_medications = Some(cm);
+    }
+    if let Some(l) = req.lifestyle {
+        person.lifestyle = Some(l);
+    }
+    if let Some(bm) = req.body_measurements {
+        person.body_measurements = Some(bm);
+    }
+
+    // Update timestamp
+    person.updated_at = chrono::Utc::now();
+
+    match state.storage.update_person(&person).await {
+        Ok(_) => Ok(Json(PersonResponse::from(person))),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
 
@@ -1092,7 +1232,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/", get(serve_index))
         // API routes
         .route("/api/persons", get(list_persons).post(create_person))
-        .route("/api/persons/:id", get(get_person).delete(delete_person))
+        .route("/api/persons/:id", get(get_person).put(update_person_handler).delete(delete_person))
         .route("/api/visits", get(list_visits).post(create_visit))
         .route("/api/visits/:id", get(get_visit).delete(delete_visit))
         .route("/api/visits/:id/attachments", post(upload_attachment))

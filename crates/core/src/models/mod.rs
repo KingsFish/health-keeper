@@ -7,9 +7,15 @@ mod person;
 mod visit;
 
 pub use attachment::Attachment;
-pub use common::{generate_id, AttachmentType, BloodType, Gender, Relationship};
+pub use common::{
+    generate_id, AttachmentType, BloodType, DiseaseStatus, DrinkingStatus, Gender, Relationship,
+    SmokingStatus,
+};
 pub use extracted_data::{
     ExtractedData, ExtractedDataType, LabResult, Medication, OcrResult, VitalSigns,
 };
-pub use person::{Person, PersonBuilder};
+pub use person::{
+    BodyMeasurements, ChronicDisease, FamilyHistoryEntry, Hospitalization, Lifestyle,
+    LongTermMedication, MajorIllness, PastSurgery, Person, PersonBuilder,
+};
 pub use visit::{Visit, VisitBuilder};

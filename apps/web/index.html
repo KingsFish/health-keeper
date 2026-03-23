@@ -300,6 +300,21 @@
                 <button onclick="zoomIn()">➕ 放大</button>
             </div>
         </div>
+
+        <!-- Person Detail Modal -->
+        <div id="personDetailModal" class="modal fixed inset-0 bg-black/50 items-center justify-center z-50">
+            <div class="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                <div class="p-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
+                    <h3 class="text-xl font-semibold" id="personDetailTitle">成员详情</h3>
+                    <div class="flex items-center gap-2">
+                        <button onclick="deletePerson(currentPersonData.id); closePersonDetail();" class="px-3 py-1 text-red-600 hover:text-red-800 text-sm">删除</button>
+                        <button onclick="toggleEditMode()" id="editToggleBtn" class="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">编辑</button>
+                        <button onclick="closePersonDetail()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+                    </div>
+                </div>
+                <div id="personDetailContent" class="p-4"></div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -381,12 +396,14 @@
             }
             container.innerHTML = persons.map(p => `
                 <div class="p-4 hover:bg-gray-50 cursor-pointer flex justify-between items-center ${selectedPersonId === p.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''}"
-                     onclick="filterByPerson('${p.id}')">
-                    <div>
-                        <div class="font-medium ${selectedPersonId === p.id ? 'text-blue-700' : ''}">${p.name}</div>
+                     onclick="event.target.closest('button') ? null : (event.ctrlKey || event.metaKey ? filterByPerson('${p.id}') : showPersonDetail('${p.id}'))">
+                    <div class="flex-1">
+                        <div class="font-medium ${selectedPersonId === p.id ? 'text-blue-700' : ''}">${escapeHtml(p.name)}</div>
                         <div class="text-sm text-gray-500">${formatRelationship(p.relationship)}</div>
                     </div>
-                    <button onclick="event.stopPropagation(); deletePerson('${p.id}')" class="text-red-500 hover:text-red-700 text-sm">删除</button>
+                    <div class="flex items-center gap-1 text-xs text-gray-400">
+                        点击查看详情
+                    </div>
                 </div>
             `).join('');
         }
@@ -427,6 +444,432 @@
         function closePersonModal() {
             document.getElementById('personModal').classList.remove('active');
         }
+
+        // ==================== Person Detail Modal ====================
+        let currentPersonData = null;
+        let isEditMode = false;
+
+        async function showPersonDetail(id) {
+            const person = persons.find(p => p.id === id);
+            if (!person) return;
+
+            currentPersonData = person;
+            isEditMode = false;
+            renderPersonDetail();
+            document.getElementById('personDetailModal').classList.add('active');
+        }
+
+        function closePersonDetail() {
+            document.getElementById('personDetailModal').classList.remove('active');
+            currentPersonData = null;
+            isEditMode = false;
+        }
+
+        function toggleEditMode() {
+            isEditMode = !isEditMode;
+            renderPersonDetail();
+        }
+
+        function renderPersonDetail() {
+            const p = currentPersonData;
+            const title = document.getElementById('personDetailTitle');
+            const content = document.getElementById('personDetailContent');
+            const editBtn = document.getElementById('editToggleBtn');
+
+            title.textContent = p.name;
+            editBtn.textContent = isEditMode ? '取消' : '编辑';
+
+            if (isEditMode) {
+                content.innerHTML = renderEditForm(p);
+            } else {
+                content.innerHTML = renderDetailView(p);
+            }
+        }
+
+        function renderDetailView(p) {
+            return `
+                <div class="space-y-6">
+                    <!-- 基础信息卡片 -->
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h4 class="font-medium text-gray-900 mb-3 flex items-center gap-2">
+                            <span class="text-lg">👤</span> 基础信息
+                        </h4>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div><span class="text-gray-500">关系：</span>${formatRelationship(p.relationship)}</div>
+                            <div><span class="text-gray-500">性别：</span>${formatGender(p.gender)}</div>
+                            <div><span class="text-gray-500">生日：</span>${p.birth_date || '-'}</div>
+                            <div><span class="text-gray-500">血型：</span>${p.blood_type || '-'}</div>
+                        </div>
+                        ${p.allergies && p.allergies.length > 0 ? `
+                            <div class="mt-3 pt-3 border-t border-gray-200">
+                                <span class="text-gray-500 text-sm">过敏史：</span>
+                                <div class="flex flex-wrap gap-2 mt-1">
+                                    ${p.allergies.map(a => `<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">${escapeHtml(a)}</span>`).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        ${p.notes ? `<div class="mt-3 pt-3 border-t border-gray-200 text-sm"><span class="text-gray-500">备注：</span>${escapeHtml(p.notes)}</div>` : ''}
+                    </div>
+
+                    <!-- 身体测量 -->
+                    ${renderBodyMeasurements(p.body_measurements)}
+
+                    <!-- 既往病史 -->
+                    ${renderChronicDiseases(p.chronic_diseases)}
+                    ${renderPastSurgeries(p.past_surgeries)}
+                    ${renderHospitalizations(p.hospitalizations)}
+                    ${renderMajorIllnesses(p.major_illnesses)}
+
+                    <!-- 家族病史 -->
+                    ${renderFamilyHistory(p.family_history)}
+
+                    <!-- 长期用药 -->
+                    ${renderCurrentMedications(p.current_medications)}
+
+                    <!-- 生活习惯 -->
+                    ${renderLifestyle(p.lifestyle)}
+
+                    <!-- 空状态提示 -->
+                    ${isEmpty(p) ? '<div class="text-center text-gray-400 py-8">暂无健康信息，点击"编辑"添加</div>' : ''}
+                </div>
+            `;
+        }
+
+        function isEmpty(p) {
+            return !p.chronic_diseases?.length && !p.past_surgeries?.length &&
+                   !p.hospitalizations?.length && !p.major_illnesses?.length &&
+                   !p.family_history?.length && !p.current_medications?.length &&
+                   !p.lifestyle && !p.body_measurements;
+        }
+
+        function renderBodyMeasurements(bm) {
+            if (!bm) return '';
+            const bmi = bm.height && bm.weight ? (bm.weight / Math.pow(bm.height / 100, 2)).toFixed(1) : null;
+            return `
+                <div class="bg-blue-50 rounded-lg p-4">
+                    <h4 class="font-medium text-blue-900 mb-3 flex items-center gap-2">
+                        <span class="text-lg">📏</span> 身体测量
+                    </h4>
+                    <div class="grid grid-cols-3 gap-4 text-sm">
+                        <div><span class="text-gray-500">身高：</span>${bm.height ? bm.height + ' cm' : '-'}</div>
+                        <div><span class="text-gray-500">体重：</span>${bm.weight ? bm.weight + ' kg' : '-'}</div>
+                        <div><span class="text-gray-500">BMI：</span>${bmi ? bmi : '-'}</div>
+                    </div>
+                    ${bm.last_updated ? `<div class="mt-2 text-xs text-gray-400">更新于 ${bm.last_updated}</div>` : ''}
+                </div>
+            `;
+        }
+
+        function renderChronicDiseases(diseases) {
+            if (!diseases || diseases.length === 0) return '';
+            return `
+                <div class="bg-orange-50 rounded-lg p-4">
+                    <h4 class="font-medium text-orange-900 mb-3 flex items-center gap-2">
+                        <span class="text-lg">🏥</span> 慢性病史
+                    </h4>
+                    <div class="space-y-2">
+                        ${diseases.map(d => `
+                            <div class="flex items-start gap-2 text-sm">
+                                <span class="bg-orange-200 text-orange-800 px-2 py-0.5 rounded text-xs">${formatDiseaseStatus(d.status)}</span>
+                                <div>
+                                    <span class="font-medium">${escapeHtml(d.name)}</span>
+                                    ${d.diagnosed_date ? `<span class="text-gray-400 ml-2">${d.diagnosed_date}</span>` : ''}
+                                    ${d.notes ? `<div class="text-gray-500 text-xs mt-0.5">${escapeHtml(d.notes)}</div>` : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderPastSurgeries(surgeries) {
+            if (!surgeries || surgeries.length === 0) return '';
+            return `
+                <div class="bg-purple-50 rounded-lg p-4">
+                    <h4 class="font-medium text-purple-900 mb-3 flex items-center gap-2">
+                        <span class="text-lg">🔪</span> 手术史
+                    </h4>
+                    <div class="space-y-2">
+                        ${surgeries.map(s => `
+                            <div class="text-sm">
+                                <span class="font-medium">${escapeHtml(s.name)}</span>
+                                ${s.date ? `<span class="text-gray-400 ml-2">${s.date}</span>` : ''}
+                                ${s.hospital ? `<span class="text-gray-400 ml-2">@ ${escapeHtml(s.hospital)}</span>` : ''}
+                                ${s.notes ? `<div class="text-gray-500 text-xs mt-0.5">${escapeHtml(s.notes)}</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderHospitalizations(hospitalizations) {
+            if (!hospitalizations || hospitalizations.length === 0) return '';
+            return `
+                <div class="bg-red-50 rounded-lg p-4">
+                    <h4 class="font-medium text-red-900 mb-3 flex items-center gap-2">
+                        <span class="text-lg">🏨</span> 住院史
+                    </h4>
+                    <div class="space-y-2">
+                        ${hospitalizations.map(h => `
+                            <div class="text-sm">
+                                <span class="font-medium">${escapeHtml(h.reason)}</span>
+                                ${h.admission_date ? `<span class="text-gray-400 ml-2">${h.admission_date}${h.discharge_date ? ' ~ ' + h.discharge_date : ''}</span>` : ''}
+                                ${h.hospital ? `<span class="text-gray-400 ml-2">@ ${escapeHtml(h.hospital)}</span>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderMajorIllnesses(illnesses) {
+            if (!illnesses || illnesses.length === 0) return '';
+            return `
+                <div class="bg-yellow-50 rounded-lg p-4">
+                    <h4 class="font-medium text-yellow-900 mb-3 flex items-center gap-2">
+                        <span class="text-lg">⚡</span> 重大疾病史
+                    </h4>
+                    <div class="space-y-2">
+                        ${illnesses.map(i => `
+                            <div class="text-sm">
+                                <span class="font-medium">${escapeHtml(i.name)}</span>
+                                ${i.date ? `<span class="text-gray-400 ml-2">${i.date}</span>` : ''}
+                                ${i.outcome ? `<span class="bg-yellow-200 text-yellow-800 text-xs px-1.5 py-0.5 rounded ml-2">${escapeHtml(i.outcome)}</span>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderFamilyHistory(history) {
+            if (!history || history.length === 0) return '';
+            return `
+                <div class="bg-teal-50 rounded-lg p-4">
+                    <h4 class="font-medium text-teal-900 mb-3 flex items-center gap-2">
+                        <span class="text-lg">👨‍👩‍👧‍👦</span> 家族病史
+                    </h4>
+                    <div class="space-y-1">
+                        ${history.map(h => `
+                            <div class="text-sm">
+                                <span class="text-gray-500">${escapeHtml(h.relation)}：</span>
+                                <span class="font-medium">${escapeHtml(h.disease)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderCurrentMedications(medications) {
+            if (!medications || medications.length === 0) return '';
+            return `
+                <div class="bg-green-50 rounded-lg p-4">
+                    <h4 class="font-medium text-green-900 mb-3 flex items-center gap-2">
+                        <span class="text-lg">💊</span> 长期用药
+                    </h4>
+                    <div class="space-y-2">
+                        ${medications.map(m => `
+                            <div class="text-sm flex items-center gap-2">
+                                <span class="font-medium">${escapeHtml(m.name)}</span>
+                                ${m.dosage ? `<span class="text-gray-500">${escapeHtml(m.dosage)}</span>` : ''}
+                                ${m.frequency ? `<span class="text-gray-400">${escapeHtml(m.frequency)}</span>` : ''}
+                                ${m.start_date ? `<span class="text-xs text-gray-400">从 ${m.start_date}</span>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderLifestyle(lifestyle) {
+            if (!lifestyle) return '';
+            return `
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h4 class="font-medium text-gray-900 mb-3 flex items-center gap-2">
+                        <span class="text-lg">🚬</span> 生活习惯
+                    </h4>
+                    <div class="grid grid-cols-3 gap-4 text-sm">
+                        <div><span class="text-gray-500">吸烟：</span>${formatSmoking(lifestyle.smoking)}</div>
+                        <div><span class="text-gray-500">饮酒：</span>${formatDrinking(lifestyle.drinking)}</div>
+                        <div><span class="text-gray-500">职业：</span>${lifestyle.occupation || '-'}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==================== Edit Form ====================
+        function renderEditForm(p) {
+            return `
+                <form id="editPersonForm" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">姓名</label>
+                            <input type="text" name="name" value="${escapeHtml(p.name)}" class="w-full border rounded-lg px-3 py-2" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">关系</label>
+                            <select name="relationship" class="w-full border rounded-lg px-3 py-2">
+                                ${['self', 'spouse', 'child', 'parent', 'sibling', 'other'].map(r =>
+                                    `<option value="${r}" ${p.relationship === r ? 'selected' : ''}>${formatRelationship(r)}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">出生日期</label>
+                            <input type="date" name="birth_date" value="${p.birth_date || ''}" class="w-full border rounded-lg px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">性别</label>
+                            <select name="gender" class="w-full border rounded-lg px-3 py-2">
+                                <option value="" ${!p.gender ? 'selected' : ''}>未知</option>
+                                <option value="male" ${p.gender === 'male' ? 'selected' : ''}>男</option>
+                                <option value="female" ${p.gender === 'female' ? 'selected' : ''}>女</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">血型</label>
+                            <select name="blood_type" class="w-full border rounded-lg px-3 py-2">
+                                <option value="" ${!p.blood_type ? 'selected' : ''}>未知</option>
+                                ${['A', 'B', 'AB', 'O'].map(bt =>
+                                    `<option value="${bt}" ${p.blood_type === bt ? 'selected' : ''}>${bt}型</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">身高 (cm)</label>
+                            <input type="number" name="height" value="${p.body_measurements?.height || ''}" step="0.1" class="w-full border rounded-lg px-3 py-2" placeholder="如：175">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">体重 (kg)</label>
+                            <input type="number" name="weight" value="${p.body_measurements?.weight || ''}" step="0.1" class="w-full border rounded-lg px-3 py-2" placeholder="如：70">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">吸烟</label>
+                            <select name="smoking" class="w-full border rounded-lg px-3 py-2">
+                                <option value="" ${!p.lifestyle?.smoking ? 'selected' : ''}>未知</option>
+                                <option value="never" ${p.lifestyle?.smoking === 'never' ? 'selected' : ''}>从不</option>
+                                <option value="former" ${p.lifestyle?.smoking === 'former' ? 'selected' : ''}>已戒烟</option>
+                                <option value="current" ${p.lifestyle?.smoking === 'current' ? 'selected' : ''}>吸烟</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">饮酒</label>
+                            <select name="drinking" class="w-full border rounded-lg px-3 py-2">
+                                <option value="" ${!p.lifestyle?.drinking ? 'selected' : ''}>未知</option>
+                                <option value="never" ${p.lifestyle?.drinking === 'never' ? 'selected' : ''}>从不</option>
+                                <option value="occasional" ${p.lifestyle?.drinking === 'occasional' ? 'selected' : ''}>偶尔</option>
+                                <option value="regular" ${p.lifestyle?.drinking === 'regular' ? 'selected' : ''}>经常</option>
+                                <option value="former" ${p.lifestyle?.drinking === 'former' ? 'selected' : ''}>已戒酒</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">职业</label>
+                            <input type="text" name="occupation" value="${escapeHtml(p.lifestyle?.occupation || '')}" class="w-full border rounded-lg px-3 py-2">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">过敏史（逗号分隔）</label>
+                        <input type="text" name="allergies" value="${(p.allergies || []).join(', ')}" class="w-full border rounded-lg px-3 py-2" placeholder="如：花生, 海鲜">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">备注</label>
+                        <textarea name="notes" rows="2" class="w-full border rounded-lg px-3 py-2">${escapeHtml(p.notes || '')}</textarea>
+                    </div>
+
+                    <!-- 健康信息编辑区域 -->
+                    <div class="border-t pt-4 space-y-4">
+                        <h4 class="font-medium text-gray-900">健康信息</h4>
+
+                        <!-- 慢性病史 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">慢性病史</label>
+                            <input type="text" name="chronic_diseases" value="${(p.chronic_diseases || []).map(d => d.name).join(', ')}" class="w-full border rounded-lg px-3 py-2" placeholder="如：高血压, 糖尿病（逗号分隔）">
+                        </div>
+
+                        <!-- 手术史 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">手术史</label>
+                            <input type="text" name="past_surgeries" value="${(p.past_surgeries || []).map(s => s.name).join(', ')}" class="w-full border rounded-lg px-3 py-2" placeholder="如：阑尾切除术（逗号分隔）">
+                        </div>
+
+                        <!-- 家族病史 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">家族病史</label>
+                            <input type="text" name="family_history" value="${(p.family_history || []).map(h => h.relation + ':' + h.disease).join(', ')}" class="w-full border rounded-lg px-3 py-2" placeholder="如：父亲:糖尿病, 母亲:高血压（逗号分隔）">
+                        </div>
+
+                        <!-- 长期用药 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">长期用药</label>
+                            <input type="text" name="current_medications" value="${(p.current_medications || []).map(m => m.name).join(', ')}" class="w-full border rounded-lg px-3 py-2" placeholder="如：硝苯地平, 阿司匹林（逗号分隔）">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-4 border-t">
+                        <button type="button" onclick="toggleEditMode()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">取消</button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">保存</button>
+                    </div>
+                </form>
+            `;
+        }
+
+        // 保存编辑
+        document.addEventListener('submit', async (e) => {
+            if (e.target.id !== 'editPersonForm') return;
+            e.preventDefault();
+
+            const form = e.target;
+            const height = parseFloat(form.height.value) || null;
+            const weight = parseFloat(form.weight.value) || null;
+
+            // 解析健康信息字段
+            const parseSimpleList = (value) => {
+                if (!value || !value.trim()) return null;
+                return value.split(',').map(s => s.trim()).filter(s => s);
+            };
+
+            const parseFamilyHistory = (value) => {
+                if (!value || !value.trim()) return null;
+                return value.split(',').map(s => {
+                    const parts = s.trim().split(':');
+                    return { relation: parts[0]?.trim() || '', disease: parts[1]?.trim() || '' };
+                }).filter(h => h.relation && h.disease);
+            };
+
+            const data = {
+                name: form.name.value,
+                relationship: form.relationship.value,
+                birth_date: form.birth_date.value || null,
+                gender: form.gender.value || null,
+                blood_type: form.blood_type.value || null,
+                allergies: parseSimpleList(form.allergies.value),
+                notes: form.notes.value || null,
+                body_measurements: (height || weight) ? { height, weight, last_updated: new Date().toISOString().split('T')[0] } : null,
+                lifestyle: {
+                    smoking: form.smoking.value || null,
+                    drinking: form.drinking.value || null,
+                    occupation: form.occupation.value || null
+                },
+                chronic_diseases: parseSimpleList(form.chronic_diseases.value)?.map(name => ({ name, status: 'active' })),
+                past_surgeries: parseSimpleList(form.past_surgeries.value)?.map(name => ({ name })),
+                family_history: parseFamilyHistory(form.family_history.value),
+                current_medications: parseSimpleList(form.current_medications.value)?.map(name => ({ name }))
+            };
+
+            try {
+                await fetchAPI(`/api/persons/${currentPersonData.id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(data)
+                });
+                closePersonDetail();
+                await loadPersons();
+            } catch (err) {
+                alert('保存失败: ' + err.message);
+            }
+        });
 
         document.getElementById('personForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -853,6 +1296,33 @@
         function formatRelationship(r) {
             const map = { self: '本人', spouse: '配偶', child: '子女', parent: '父母', sibling: '兄弟姐妹', other: '其他' };
             return map[r] || r;
+        }
+
+        function formatGender(g) {
+            const map = { male: '男', female: '女', other: '其他' };
+            return map[g] || '未知';
+        }
+
+        function formatDiseaseStatus(s) {
+            const map = { active: '活动期', controlled: '控制中', remission: '缓解期' };
+            return map[s] || s || '未知';
+        }
+
+        function formatSmoking(s) {
+            const map = { never: '从不', former: '已戒烟', current: '吸烟' };
+            return map[s] || '未知';
+        }
+
+        function formatDrinking(d) {
+            const map = { never: '从不', occasional: '偶尔', regular: '经常', former: '已戒酒' };
+            return map[d] || '未知';
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         function formatBytes(bytes) {
