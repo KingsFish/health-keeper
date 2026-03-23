@@ -396,14 +396,14 @@
             }
             container.innerHTML = persons.map(p => `
                 <div class="p-4 hover:bg-gray-50 cursor-pointer flex justify-between items-center ${selectedPersonId === p.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''}"
-                     onclick="event.target.closest('button') ? null : (event.ctrlKey || event.metaKey ? filterByPerson('${p.id}') : showPersonDetail('${p.id}'))">
+                     onclick="selectPersonAndLoadVisits('${p.id}')">
                     <div class="flex-1">
                         <div class="font-medium ${selectedPersonId === p.id ? 'text-blue-700' : ''}">${escapeHtml(p.name)}</div>
                         <div class="text-sm text-gray-500">${formatRelationship(p.relationship)}</div>
                     </div>
-                    <div class="flex items-center gap-1 text-xs text-gray-400">
-                        点击查看详情
-                    </div>
+                    <button onclick="event.stopPropagation(); showPersonDetail('${p.id}')" class="text-xs text-blue-500 hover:text-blue-700">
+                        查看详情
+                    </button>
                 </div>
             `).join('');
         }
@@ -436,6 +436,13 @@
         }
 
         // ==================== Person Actions ====================
+        function selectPersonAndLoadVisits(id) {
+            selectedPersonId = id;
+            localStorage.setItem('selectedPersonId', id);
+            renderPersons();
+            loadVisits(id);
+        }
+
         function showPersonModal() {
             document.getElementById('personModal').classList.add('active');
             document.getElementById('personForm').reset();
