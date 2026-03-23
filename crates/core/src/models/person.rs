@@ -3,7 +3,346 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 
-use super::common::{BloodType, Gender, Relationship};
+use super::common::{BloodType, DiseaseStatus, DrinkingStatus, Gender, Relationship, SmokingStatus};
+
+// ============================================================================
+// Health Information Structures
+// ============================================================================
+
+/// Chronic disease record
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChronicDisease {
+    /// Disease name (e.g., "高血压")
+    pub name: String,
+    /// Date of diagnosis
+    pub diagnosed_date: Option<NaiveDate>,
+    /// Current status
+    pub status: DiseaseStatus,
+    /// Additional notes
+    pub notes: Option<String>,
+}
+
+impl ChronicDisease {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            diagnosed_date: None,
+            status: DiseaseStatus::default(),
+            notes: None,
+        }
+    }
+
+    pub fn with_diagnosed_date(mut self, date: NaiveDate) -> Self {
+        self.diagnosed_date = Some(date);
+        self
+    }
+
+    pub fn with_status(mut self, status: DiseaseStatus) -> Self {
+        self.status = status;
+        self
+    }
+
+    pub fn with_notes(mut self, notes: impl Into<String>) -> Self {
+        self.notes = Some(notes.into());
+        self
+    }
+}
+
+/// Past surgery record
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PastSurgery {
+    /// Surgery name
+    pub name: String,
+    /// Date of surgery
+    pub date: Option<NaiveDate>,
+    /// Hospital where surgery was performed
+    pub hospital: Option<String>,
+    /// Additional notes
+    pub notes: Option<String>,
+}
+
+impl PastSurgery {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            date: None,
+            hospital: None,
+            notes: None,
+        }
+    }
+
+    pub fn with_date(mut self, date: NaiveDate) -> Self {
+        self.date = Some(date);
+        self
+    }
+
+    pub fn with_hospital(mut self, hospital: impl Into<String>) -> Self {
+        self.hospital = Some(hospital.into());
+        self
+    }
+
+    pub fn with_notes(mut self, notes: impl Into<String>) -> Self {
+        self.notes = Some(notes.into());
+        self
+    }
+}
+
+/// Hospitalization record
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Hospitalization {
+    /// Reason for hospitalization
+    pub reason: String,
+    /// Admission date
+    pub admission_date: Option<NaiveDate>,
+    /// Discharge date
+    pub discharge_date: Option<NaiveDate>,
+    /// Hospital name
+    pub hospital: Option<String>,
+    /// Additional notes
+    pub notes: Option<String>,
+}
+
+impl Hospitalization {
+    pub fn new(reason: impl Into<String>) -> Self {
+        Self {
+            reason: reason.into(),
+            admission_date: None,
+            discharge_date: None,
+            hospital: None,
+            notes: None,
+        }
+    }
+
+    pub fn with_admission_date(mut self, date: NaiveDate) -> Self {
+        self.admission_date = Some(date);
+        self
+    }
+
+    pub fn with_discharge_date(mut self, date: NaiveDate) -> Self {
+        self.discharge_date = Some(date);
+        self
+    }
+
+    pub fn with_hospital(mut self, hospital: impl Into<String>) -> Self {
+        self.hospital = Some(hospital.into());
+        self
+    }
+
+    pub fn with_notes(mut self, notes: impl Into<String>) -> Self {
+        self.notes = Some(notes.into());
+        self
+    }
+}
+
+/// Major illness record
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MajorIllness {
+    /// Illness name
+    pub name: String,
+    /// Date of occurrence
+    pub date: Option<NaiveDate>,
+    /// Outcome (e.g., "治愈", "好转", "稳定")
+    pub outcome: Option<String>,
+    /// Additional notes
+    pub notes: Option<String>,
+}
+
+impl MajorIllness {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            date: None,
+            outcome: None,
+            notes: None,
+        }
+    }
+
+    pub fn with_date(mut self, date: NaiveDate) -> Self {
+        self.date = Some(date);
+        self
+    }
+
+    pub fn with_outcome(mut self, outcome: impl Into<String>) -> Self {
+        self.outcome = Some(outcome.into());
+        self
+    }
+
+    pub fn with_notes(mut self, notes: impl Into<String>) -> Self {
+        self.notes = Some(notes.into());
+        self
+    }
+}
+
+/// Family history entry
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FamilyHistoryEntry {
+    /// Relationship to the person (e.g., "父亲", "母亲")
+    pub relation: String,
+    /// Disease name
+    pub disease: String,
+    /// Additional notes
+    pub notes: Option<String>,
+}
+
+impl FamilyHistoryEntry {
+    pub fn new(relation: impl Into<String>, disease: impl Into<String>) -> Self {
+        Self {
+            relation: relation.into(),
+            disease: disease.into(),
+            notes: None,
+        }
+    }
+
+    pub fn with_notes(mut self, notes: impl Into<String>) -> Self {
+        self.notes = Some(notes.into());
+        self
+    }
+}
+
+/// Long-term medication record for personal health profile
+/// Different from extracted_data::Medication which is for AI-extracted prescriptions
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LongTermMedication {
+    /// Medication name
+    pub name: String,
+    /// Dosage (e.g., "10mg")
+    pub dosage: Option<String>,
+    /// Frequency (e.g., "每日一次")
+    pub frequency: Option<String>,
+    /// Start date
+    pub start_date: Option<NaiveDate>,
+    /// Additional notes
+    pub notes: Option<String>,
+}
+
+impl LongTermMedication {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            dosage: None,
+            frequency: None,
+            start_date: None,
+            notes: None,
+        }
+    }
+
+    pub fn with_dosage(mut self, dosage: impl Into<String>) -> Self {
+        self.dosage = Some(dosage.into());
+        self
+    }
+
+    pub fn with_frequency(mut self, frequency: impl Into<String>) -> Self {
+        self.frequency = Some(frequency.into());
+        self
+    }
+
+    pub fn with_start_date(mut self, date: NaiveDate) -> Self {
+        self.start_date = Some(date);
+        self
+    }
+
+    pub fn with_notes(mut self, notes: impl Into<String>) -> Self {
+        self.notes = Some(notes.into());
+        self
+    }
+}
+
+/// Lifestyle information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Lifestyle {
+    /// Smoking status
+    pub smoking: Option<SmokingStatus>,
+    /// Drinking status
+    pub drinking: Option<DrinkingStatus>,
+    /// Occupation
+    pub occupation: Option<String>,
+}
+
+impl Lifestyle {
+    pub fn new() -> Self {
+        Self {
+            smoking: None,
+            drinking: None,
+            occupation: None,
+        }
+    }
+
+    pub fn with_smoking(mut self, smoking: SmokingStatus) -> Self {
+        self.smoking = Some(smoking);
+        self
+    }
+
+    pub fn with_drinking(mut self, drinking: DrinkingStatus) -> Self {
+        self.drinking = Some(drinking);
+        self
+    }
+
+    pub fn with_occupation(mut self, occupation: impl Into<String>) -> Self {
+        self.occupation = Some(occupation.into());
+        self
+    }
+}
+
+impl Default for Lifestyle {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Body measurements (height, weight, etc.)
+/// Different from extracted_data::VitalSigns which includes blood pressure, heart rate, etc.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BodyMeasurements {
+    /// Height in cm
+    pub height: Option<f32>,
+    /// Weight in kg
+    pub weight: Option<f32>,
+    /// Last updated date
+    pub last_updated: Option<NaiveDate>,
+}
+
+impl BodyMeasurements {
+    pub fn new() -> Self {
+        Self {
+            height: None,
+            weight: None,
+            last_updated: None,
+        }
+    }
+
+    pub fn with_height(mut self, height: f32) -> Self {
+        self.height = Some(height);
+        self
+    }
+
+    pub fn with_weight(mut self, weight: f32) -> Self {
+        self.weight = Some(weight);
+        self
+    }
+
+    pub fn with_last_updated(mut self, date: NaiveDate) -> Self {
+        self.last_updated = Some(date);
+        self
+    }
+
+    /// Calculate BMI if height and weight are available
+    pub fn bmi(&self) -> Option<f32> {
+        match (self.height, self.weight) {
+            (Some(h), Some(w)) if h > 0.0 => Some(w / ((h / 100.0).powi(2))),
+            _ => None,
+        }
+    }
+}
+
+impl Default for BodyMeasurements {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ============================================================================
+// Person Entity
+// ============================================================================
 
 /// Person entity representing a person in the health records system
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -24,6 +363,23 @@ pub struct Person {
     pub allergies: Option<Vec<String>>,
     /// Additional notes
     pub notes: Option<String>,
+    // Health Information
+    /// Chronic diseases
+    pub chronic_diseases: Option<Vec<ChronicDisease>>,
+    /// Past surgeries
+    pub past_surgeries: Option<Vec<PastSurgery>>,
+    /// Hospitalization history
+    pub hospitalizations: Option<Vec<Hospitalization>>,
+    /// Major illnesses
+    pub major_illnesses: Option<Vec<MajorIllness>>,
+    /// Family history
+    pub family_history: Option<Vec<FamilyHistoryEntry>>,
+    /// Current medications
+    pub current_medications: Option<Vec<LongTermMedication>>,
+    /// Lifestyle information
+    pub lifestyle: Option<Lifestyle>,
+    /// Body measurements (height, weight)
+    pub body_measurements: Option<BodyMeasurements>,
     /// Record creation time
     pub created_at: DateTime<Utc>,
     /// Record last update time
@@ -43,6 +399,14 @@ impl Person {
             blood_type: None,
             allergies: None,
             notes: None,
+            chronic_diseases: None,
+            past_surgeries: None,
+            hospitalizations: None,
+            major_illnesses: None,
+            family_history: None,
+            current_medications: None,
+            lifestyle: None,
+            body_measurements: None,
             created_at: now,
             updated_at: now,
         }
@@ -75,6 +439,54 @@ impl Person {
     /// Set the notes
     pub fn with_notes(mut self, notes: String) -> Self {
         self.notes = Some(notes);
+        self
+    }
+
+    /// Set chronic diseases
+    pub fn with_chronic_diseases(mut self, diseases: Vec<ChronicDisease>) -> Self {
+        self.chronic_diseases = Some(diseases);
+        self
+    }
+
+    /// Set past surgeries
+    pub fn with_past_surgeries(mut self, surgeries: Vec<PastSurgery>) -> Self {
+        self.past_surgeries = Some(surgeries);
+        self
+    }
+
+    /// Set hospitalizations
+    pub fn with_hospitalizations(mut self, hospitalizations: Vec<Hospitalization>) -> Self {
+        self.hospitalizations = Some(hospitalizations);
+        self
+    }
+
+    /// Set major illnesses
+    pub fn with_major_illnesses(mut self, illnesses: Vec<MajorIllness>) -> Self {
+        self.major_illnesses = Some(illnesses);
+        self
+    }
+
+    /// Set family history
+    pub fn with_family_history(mut self, history: Vec<FamilyHistoryEntry>) -> Self {
+        self.family_history = Some(history);
+        self
+    }
+
+    /// Set current medications
+    pub fn with_current_medications(mut self, medications: Vec<LongTermMedication>) -> Self {
+        self.current_medications = Some(medications);
+        self
+    }
+
+    /// Set lifestyle
+    pub fn with_lifestyle(mut self, lifestyle: Lifestyle) -> Self {
+        self.lifestyle = Some(lifestyle);
+        self
+    }
+
+    /// Set body measurements
+    pub fn with_body_measurements(mut self, body_measurements: BodyMeasurements) -> Self {
+        self.body_measurements = Some(body_measurements);
         self
     }
 }
