@@ -371,6 +371,9 @@ async fn update_person_handler(
         person.body_measurements = Some(bm);
     }
 
+    // Update timestamp
+    person.updated_at = chrono::Utc::now();
+
     match state.storage.update_person(&person).await {
         Ok(_) => Ok(Json(PersonResponse::from(person))),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
