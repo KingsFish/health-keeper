@@ -556,30 +556,30 @@ async fn update_visit_handler(
         Err(_) => return Err(StatusCode::NOT_FOUND),
     };
 
-    // Update fields
+    // Update fields - empty string means clear the field
     if let Some(hospital) = req.hospital {
-        visit.hospital = Some(hospital);
+        visit.hospital = if hospital.is_empty() { None } else { Some(hospital) };
     }
     if let Some(department) = req.department {
-        visit.department = Some(department);
+        visit.department = if department.is_empty() { None } else { Some(department) };
     }
     if let Some(doctor) = req.doctor {
-        visit.doctor = Some(doctor);
+        visit.doctor = if doctor.is_empty() { None } else { Some(doctor) };
     }
     if let Some(chief_complaint) = req.chief_complaint {
-        visit.chief_complaint = Some(chief_complaint);
+        visit.chief_complaint = if chief_complaint.is_empty() { None } else { Some(chief_complaint) };
     }
     if let Some(diagnosis) = req.diagnosis {
-        visit.diagnosis = Some(diagnosis);
+        visit.diagnosis = if diagnosis.is_empty() { None } else { Some(diagnosis) };
     }
     if let Some(treatment) = req.treatment {
-        visit.treatment = Some(treatment);
+        visit.treatment = if treatment.is_empty() { None } else { Some(treatment) };
     }
     if let Some(summary) = req.summary {
-        visit.summary = Some(summary);
+        visit.summary = if summary.is_empty() { None } else { Some(summary) };
     }
     if let Some(notes) = req.notes {
-        visit.notes = Some(notes);
+        visit.notes = if notes.is_empty() { None } else { Some(notes) };
     }
 
     // Update timestamp
