@@ -1121,11 +1121,11 @@
                 '<div><span class="text-gray-500">日期:</span> ' + visit.visit_date + '</div>' +
                 '</div>';
 
-            if (visit.chief_complaint) html += '<div><span class="text-gray-500">主诉:</span> ' + visit.chief_complaint + '</div>';
-            if (visit.diagnosis) html += '<div><span class="text-gray-500">诊断:</span> <span class="font-medium">' + visit.diagnosis + '</span></div>';
-            if (visit.summary) html += '<div><span class="text-gray-500">摘要:</span> ' + visit.summary + '</div>';
-            if (visit.treatment) html += '<div><span class="text-gray-500">治疗:</span> ' + visit.treatment + '</div>';
-            if (visit.notes) html += '<div><span class="text-gray-500">备注:</span> ' + visit.notes + '</div>';
+            if (visit.chief_complaint) html += '<div><span class="text-gray-500">主诉:</span> ' + escapeHtml(visit.chief_complaint) + '</div>';
+            if (visit.diagnosis) html += '<div><span class="text-gray-500">诊断:</span> <span class="font-medium">' + escapeHtml(visit.diagnosis) + '</span></div>';
+            if (visit.summary) html += '<div><span class="text-gray-500">摘要:</span> ' + escapeHtml(visit.summary) + '</div>';
+            if (visit.treatment) html += '<div><span class="text-gray-500">治疗:</span> ' + escapeHtml(visit.treatment) + '</div>';
+            if (visit.notes) html += '<div><span class="text-gray-500">备注:</span> ' + escapeHtml(visit.notes) + '</div>';
 
             html += '<div class="border-t pt-4">' +
                 '<div class="flex justify-between items-center mb-3">' +

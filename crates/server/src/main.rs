@@ -590,8 +590,12 @@ async fn update_visit_handler(
 
     // Get attachments for response
     let attachments = state.storage.list_attachments(&id).await.unwrap_or_default();
-    let attachment_responses: Vec<AttachmentResponse> = attachments.into_iter().map(|a| {
-        AttachmentResponse {
+    let mut attachment_responses = Vec::new();
+    for a in &attachments {
+        let has_ocr = state.storage.get_ocr_result(&a.id).await.ok().flatten().is_some();
+        let has_extraction = !state.storage.get_extracted_data(&a.id).await.unwrap_or_default().is_empty();
+
+        attachment_responses.push(AttachmentResponse {
             id: a.id.clone(),
             visit_id: a.visit_id.clone(),
             attachment_type: a.attachment_type.to_string(),
@@ -600,10 +604,10 @@ async fn update_visit_handler(
             file_size: a.file_size,
             mime_type: a.mime_type.clone(),
             created_at: a.created_at.to_rfc3339(),
-            has_ocr: false, // We don't check this here for simplicity
-            has_extraction: false,
-        }
-    }).collect();
+            has_ocr,
+            has_extraction,
+        });
+    }
 
     Ok(Json(VisitResponse {
         id: visit.id,
