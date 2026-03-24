@@ -133,6 +133,18 @@ struct CreateVisitRequest {
     attachment_ids: Vec<String>,
 }
 
+#[derive(Debug, Deserialize)]
+struct UpdateVisitRequest {
+    hospital: Option<String>,
+    department: Option<String>,
+    doctor: Option<String>,
+    chief_complaint: Option<String>,
+    diagnosis: Option<String>,
+    treatment: Option<String>,
+    summary: Option<String>,
+    notes: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 struct VisitResponse {
     id: String,
@@ -514,6 +526,84 @@ async fn get_visit(
             has_extraction,
         });
     }
+
+    Ok(Json(VisitResponse {
+        id: visit.id,
+        person_id: visit.person_id,
+        visit_date: visit.visit_date.to_string(),
+        hospital: visit.hospital,
+        department: visit.department,
+        doctor: visit.doctor,
+        chief_complaint: visit.chief_complaint,
+        diagnosis: visit.diagnosis,
+        treatment: visit.treatment,
+        summary: visit.summary,
+        notes: visit.notes,
+        created_at: visit.created_at.to_rfc3339(),
+        updated_at: visit.updated_at.to_rfc3339(),
+        attachments: attachment_responses,
+    }))
+}
+
+async fn update_visit_handler(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    Json(req): Json<UpdateVisitRequest>,
+) -> Result<Json<VisitResponse>, StatusCode> {
+    // Get existing visit
+    let mut visit = match state.storage.get_visit(&id).await {
+        Ok(v) => v,
+        Err(_) => return Err(StatusCode::NOT_FOUND),
+    };
+
+    // Update fields
+    if let Some(hospital) = req.hospital {
+        visit.hospital = Some(hospital);
+    }
+    if let Some(department) = req.department {
+        visit.department = Some(department);
+    }
+    if let Some(doctor) = req.doctor {
+        visit.doctor = Some(doctor);
+    }
+    if let Some(chief_complaint) = req.chief_complaint {
+        visit.chief_complaint = Some(chief_complaint);
+    }
+    if let Some(diagnosis) = req.diagnosis {
+        visit.diagnosis = Some(diagnosis);
+    }
+    if let Some(treatment) = req.treatment {
+        visit.treatment = Some(treatment);
+    }
+    if let Some(summary) = req.summary {
+        visit.summary = Some(summary);
+    }
+    if let Some(notes) = req.notes {
+        visit.notes = Some(notes);
+    }
+
+    // Update timestamp
+    visit.updated_at = chrono::Utc::now();
+
+    // Save to storage
+    state.storage.update_visit(&visit).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Get attachments for response
+    let attachments = state.storage.list_attachments(&id).await.unwrap_or_default();
+    let attachment_responses: Vec<AttachmentResponse> = attachments.into_iter().map(|a| {
+        AttachmentResponse {
+            id: a.id.clone(),
+            visit_id: a.visit_id.clone(),
+            attachment_type: a.attachment_type.to_string(),
+            file_path: a.file_path.clone(),
+            original_filename: a.original_filename.clone(),
+            file_size: a.file_size,
+            mime_type: a.mime_type.clone(),
+            created_at: a.created_at.to_rfc3339(),
+            has_ocr: false, // We don't check this here for simplicity
+            has_extraction: false,
+        }
+    }).collect();
 
     Ok(Json(VisitResponse {
         id: visit.id,
@@ -1234,7 +1324,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/persons", get(list_persons).post(create_person))
         .route("/api/persons/:id", get(get_person).put(update_person_handler).delete(delete_person))
         .route("/api/visits", get(list_visits).post(create_visit))
-        .route("/api/visits/:id", get(get_visit).delete(delete_visit))
+        .route("/api/visits/:id", get(get_visit).put(update_visit_handler).delete(delete_visit))
         .route("/api/visits/:id/attachments", post(upload_attachment))
         .route("/api/attachments/:id/ocr", post(run_ocr).get(get_ocr))
         .route("/api/attachments/:id/extract", post(run_extraction))
