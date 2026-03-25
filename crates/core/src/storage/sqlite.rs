@@ -23,6 +23,11 @@ impl SqliteStorage {
             .connect(database_url)
             .await?;
 
+        // Enable foreign key constraints
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&pool)
+            .await?;
+
         Ok(Self { pool })
     }
 

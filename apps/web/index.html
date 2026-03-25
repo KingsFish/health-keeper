@@ -968,6 +968,9 @@
                 formData.append('files', files[i]);
             }
             formData.append('archive_only', archiveOnly ? 'true' : 'false');
+            if (selectedPersonId) {
+                formData.append('person_id', selectedPersonId);
+            }
 
             try {
                 const res = await fetch(API + '/api/quick-import', {

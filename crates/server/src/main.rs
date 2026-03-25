@@ -499,15 +499,10 @@ async fn get_visit(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> Result<Json<VisitResponse>, StatusCode> {
-    println!("[DEBUG] get_visit called with id: {}", id);
     let visit = match state.storage.get_visit(&id).await {
         Ok(v) => v,
-        Err(e) => {
-            println!("[DEBUG] get_visit error: {:?}", e);
-            return Err(StatusCode::NOT_FOUND);
-        }
+        Err(_) => return Err(StatusCode::NOT_FOUND),
     };
-    println!("[DEBUG] get_visit found: {:?}", visit.id);
     let attachments = state.storage.list_attachments(&id).await.unwrap_or_default();
 
     let mut attachment_responses = Vec::new();
@@ -922,6 +917,9 @@ async fn run_extraction(
 
     state.storage.save_extracted_data(&extracted).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    // Mark attachment as processed (extraction done)
+    state.storage.update_attachment_processed(&attachment_id, true).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
     Ok(Json(ExtractionResponse {
         diagnosis: result.diagnosis,
         chief_complaint: result.chief_complaint,
@@ -1028,26 +1026,22 @@ async fn quick_import(
     let mut files: Vec<(Vec<u8>, Option<String>, Option<String>)> = Vec::new();
 
     // Parse multipart form
-    println!("[DEBUG] 开始解析 multipart 表单...");
     while let Some(field) = multipart.next_field().await.ok().flatten() {
         let field_name = field.name().map(|s| s.to_string()).unwrap_or_default();
 
         match field_name.as_str() {
             "person_id" => {
                 person_id = field.text().await.ok();
-                println!("[DEBUG] 收到 person_id: {:?}", person_id);
             }
             "archive_only" => {
                 if let Ok(val) = field.text().await {
                     archive_only = val == "true" || val == "1";
-                    println!("[DEBUG] 收到 archive_only: {}", archive_only);
                 }
             }
             "files" => {
                 let ct = field.content_type().map(|s| s.to_string());
                 let original_name = field.file_name().map(|s| s.to_string());
                 if let Ok(data) = field.bytes().await {
-                    println!("[DEBUG] 收到文件, 大小: {} bytes, 类型: {:?}, 原始文件名: {:?}", data.len(), ct, original_name);
                     files.push((data.to_vec(), ct, original_name));
                 }
             }
@@ -1170,9 +1164,18 @@ async fn quick_import(
                 attachment_ids.push(attachment_id);
             }
 
+            // Validate person_id is provided
+            let person_id = match person_id {
+                Some(id) if !id.is_empty() => id,
+                _ => {
+                    yield error_event("请先选择家庭成员");
+                    return;
+                }
+            };
+
             // Create a placeholder visit record
             let visit = Visit::new(
-                person_id.unwrap_or_default(),
+                person_id,
                 chrono::Utc::now().date_naive(),
             ).with_hospital("待整理".to_string());
 
@@ -1255,8 +1258,6 @@ async fn quick_import(
             let file_num = i + 1;
             let progress = base_progress + (file_num * ocr_progress_range / total_files) as u8;
 
-            println!("[DEBUG] 开始处理第 {} 个文件, 大小: {} bytes", file_num, file_data.len());
-
             // Get file extension from original filename or content type
             let ext = if let Some(name) = original_filename {
                 std::path::Path::new(name)
@@ -1278,39 +1279,31 @@ async fn quick_import(
                     _ => "jpg",
                 }
             };
-            println!("[DEBUG] 文件扩展名: {}", ext);
 
             // Calculate hash
-            println!("[DEBUG] 计算文件哈希...");
             use sha2::{Digest, Sha256};
             let mut hasher = Sha256::new();
             hasher.update(file_data);
             let hash = hex::encode(hasher.finalize());
-            println!("[DEBUG] 哈希计算完成: {}...", &hash[..16]);
 
             let stored_name = format!("{}.{}", hash, ext);
             let relative_path = format!("attachments/{}", stored_name);
 
             // Save to disk
-            println!("[DEBUG] 保存文件到磁盘...");
             let data_dir = std::path::Path::new("./data");
             let attachments_dir = data_dir.join("attachments");
             if let Err(e) = std::fs::create_dir_all(&attachments_dir) {
-                println!("[ERROR] 创建目录失败: {}", e);
                 yield error_event(&format!("创建目录失败: {}", e));
                 return;
             }
 
             let dest_path = attachments_dir.join(&stored_name);
             if let Err(e) = std::fs::write(&dest_path, file_data) {
-                println!("[ERROR] 保存文件失败: {}", e);
                 yield error_event(&format!("保存文件失败: {}", e));
                 return;
             }
-            println!("[DEBUG] 文件已保存: {:?}", dest_path);
 
             // Create attachment record (without visit_id)
-            println!("[DEBUG] 创建附件记录...");
             let attachment = health_keeper_core::models::Attachment::new(
                 String::new(), // Empty visit_id, will be linked later
                 relative_path.clone(),
@@ -1323,22 +1316,15 @@ async fn quick_import(
             attachment.original_filename = original_filename.clone();
             // In archive mode, mark as processed immediately
             attachment.processed = archive_only;
-            println!("[DEBUG] 附件对象创建完成, file_path: {}, archive_only: {}", attachment.file_path, archive_only);
 
-            println!("[DEBUG] 调用 storage.create_attachment...");
             let attachment_id = match state.storage.create_attachment(&attachment).await {
-                Ok(id) => {
-                    println!("[DEBUG] 附件记录创建成功, id: {}", id);
-                    id
-                },
+                Ok(id) => id,
                 Err(e) => {
-                    println!("[ERROR] 保存附件记录失败: {:?}", e);
                     yield error_event(&format!("保存附件记录失败: {}", e));
                     return;
                 }
             };
             attachment_ids.push(attachment_id);
-            println!("[DEBUG] 保存附件: {}", attachment_ids.last().unwrap());
 
             yield Ok(Event::default().json_data(ProgressEvent {
                 stage: "ocr".to_string(),
@@ -1346,7 +1332,6 @@ async fn quick_import(
                 progress,
             }).unwrap());
 
-            println!("[DEBUG] OCR 识别第 {} 个文件...", file_num);
             let ocr_result = match content_type.as_deref() {
                 Some("application/pdf") => {
                     match ocr_provider.recognize_pdf(file_data).await {
@@ -1371,14 +1356,12 @@ async fn quick_import(
                 }
             };
 
-            println!("[DEBUG] OCR 第 {} 个文件完成, 文本长度: {}", file_num, ocr_result.text.len());
             if !ocr_result.text.is_empty() {
                 all_ocr_texts.push(format!("=== 文档 {} ===\n{}", file_num, ocr_result.text));
             }
         }
 
         let combined_text = all_ocr_texts.join("\n\n");
-        println!("[DEBUG] 合并后 OCR 文本总长度: {}", combined_text.len());
 
         // Initialize LLM
         yield Ok(Event::default().json_data(ProgressEvent {
@@ -1422,7 +1405,6 @@ async fn quick_import(
             progress: 80,
         }).unwrap());
 
-        println!("[DEBUG] 开始 LLM 提取...");
         let context = ExtractionContext {
             ocr_text: combined_text.clone(),
             document_type: None,
@@ -1436,19 +1418,6 @@ async fn quick_import(
                 return;
             }
         };
-
-        println!("[DEBUG] 提取完成:");
-        println!("[DEBUG]   - 就诊日期: {:?}", extraction.visit_date);
-        println!("[DEBUG]   - 医院: {:?}", extraction.hospital);
-        println!("[DEBUG]   - 科室: {:?}", extraction.department);
-        println!("[DEBUG]   - 医生: {:?}", extraction.doctor);
-        println!("[DEBUG]   - 主诉: {:?}", extraction.chief_complaint);
-        println!("[DEBUG]   - 诊断: {:?}", extraction.diagnosis);
-        println!("[DEBUG]   - 治疗: {:?}", extraction.treatment);
-        println!("[DEBUG]   - 药物: {:?}", extraction.medications);
-        println!("[DEBUG]   - 检查结果: {:?}", extraction.lab_results);
-        println!("[DEBUG]   - 复诊: {:?}", extraction.follow_up);
-        println!("[DEBUG]   - 摘要: {:?}", extraction.summary);
 
         yield Ok(Event::default().json_data(ProgressEvent {
             stage: "complete".to_string(),
