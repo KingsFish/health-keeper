@@ -98,11 +98,21 @@
 </head>
 <body class="bg-gray-50 min-h-screen">
     <div id="app" class="max-w-7xl mx-auto px-4 py-8">
-        <!-- Header -->
-        <header class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900">🏥 HealthKeeper</h1>
-            <p class="text-gray-600 mt-1">医疗档案管理系统</p>
-        </header>
+        <!-- Greeting Section -->
+        <div id="greetingSection" class="rounded-2xl p-6 mb-6 text-white" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p id="greetingTime" class="text-lg opacity-90">早上好</p>
+                    <h1 id="greetingName" class="text-2xl font-bold mt-1">用户</h1>
+                    <p id="greetingTip" class="text-sm opacity-80 mt-2">今天也要注意身体健康哦</p>
+                </div>
+                <button id="notificationBtn" class="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors" title="通知">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
 
         <!-- Search Bar -->
         <div class="bg-white rounded-lg shadow p-4 mb-6">
@@ -489,6 +499,7 @@
             selectedPersonId = id;
             localStorage.setItem('selectedPersonId', id);
             renderPersons();
+            updateGreeting();
             loadVisits(id);
         }
 
@@ -1555,6 +1566,37 @@
             if (e.key === 'Enter') search();
         });
 
+        // ==================== Greeting ====================
+        function updateGreeting() {
+            const hour = new Date().getHours();
+            let greeting = '晚上好';
+            let tip = '早点休息，保持良好的作息习惯';
+
+            if (hour >= 5 && hour < 12) {
+                greeting = '早上好';
+                tip = '新的一天，记得按时吃药';
+            } else if (hour >= 12 && hour < 18) {
+                greeting = '下午好';
+                tip = '今天也要注意身体健康哦';
+            } else if (hour >= 18 && hour < 22) {
+                greeting = '晚上好';
+                tip = '适当运动，保持健康生活方式';
+            }
+
+            document.getElementById('greetingTime').textContent = greeting;
+            document.getElementById('greetingTip').textContent = tip;
+
+            // 获取当前选中成员的名字
+            let userName = '用户';
+            if (selectedPersonId) {
+                const person = persons.find(p => p.id === selectedPersonId);
+                if (person) {
+                    userName = person.name;
+                }
+            }
+            document.getElementById('greetingName').textContent = userName;
+        }
+
         // ==================== Helpers ====================
         function getPersonName(id) {
             const p = persons.find(p => p.id === id);
@@ -1711,6 +1753,7 @@
         // ==================== Init ====================
         async function init() {
             await loadPersons();
+            updateGreeting();
             if (selectedPersonId) {
                 loadVisits(selectedPersonId);
             }
