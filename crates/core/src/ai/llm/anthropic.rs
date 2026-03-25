@@ -39,17 +39,10 @@ impl AnthropicProvider {
     /// Build the extraction prompt
     fn build_extraction_prompt(&self, context: &ExtractionContext) -> String {
         format!(
-            r#"你是一个医疗文档分析助手。请分析以下医疗文档的OCR识别文本，提取关键信息。
+            r#"你是一个专业的医疗文档分析助手。请分析以下医疗文档的OCR识别文本，完成两个任务：
 
-文档类型提示: {}
-患者姓名: {}
-
-OCR文本:
-```
-{}
-```
-
-请提取以下信息并以JSON格式返回:
+## 任务一：结构化提取
+提取以下信息：
 1. visit_date: 就诊日期（格式: YYYY-MM-DD，如2026-03-22）
 2. hospital: 医院名称
 3. department: 科室
@@ -61,6 +54,30 @@ OCR文本:
 9. lab_results: 检查结果（数组，每项包含 name, value, unit, reference_range, is_abnormal）
 10. follow_up: 复诊建议
 11. summary: 病历摘要
+
+## 任务二：标注文本
+在原始OCR文本中标注关键信息，格式如下：
+- 【姓名】xxx
+- 【医院】xxx
+- 【科室】xxx
+- 【诊断】xxx
+- 【药品】xxx
+- 【检查】xxx
+- 【数值】xxx（如血压、体温、检验指标）
+
+---
+
+文档类型提示: {}
+患者姓名: {}
+
+OCR文本:
+```
+{}
+```
+
+请以JSON格式返回，包含以下字段：
+- visit_date, hospital, department, doctor, diagnosis, chief_complaint, treatment, medications, lab_results, follow_up, summary
+- annotated_text: 标注后的原始文本
 
 如果某项信息不存在，请设为 null。
 只返回JSON，不要其他解释。
@@ -154,6 +171,7 @@ impl LlmProvider for AnthropicProvider {
                 lab_results: vec![],
                 follow_up: None,
                 summary: Some(json_text.clone()),
+                annotated_text: None,
                 confidence: None,
             });
 

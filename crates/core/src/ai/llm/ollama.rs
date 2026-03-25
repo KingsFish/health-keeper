@@ -131,6 +131,7 @@ impl LlmProvider for OllamaProvider {
                 lab_results: vec![],
                 follow_up: None,
                 summary: Some(result.response),
+                annotated_text: None,
                 confidence: None,
             });
 

@@ -195,6 +195,7 @@ struct ExtractionResponse {
     medications: Vec<MedicationResponse>,
     follow_up: Option<String>,
     summary: Option<String>,
+    annotated_text: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -210,6 +211,7 @@ struct QuickImportResponse {
     lab_results: Vec<LabResultResponse>,
     follow_up: Option<String>,
     summary: Option<String>,
+    annotated_text: Option<String>,
     ocr_text: String,
     attachment_ids: Vec<String>,
 }
@@ -914,6 +916,7 @@ async fn run_extraction(
         }).collect(),
         follow_up: result.follow_up,
         summary: result.summary,
+        annotated_text: result.annotated_text,
     }))
 }
 
@@ -1291,6 +1294,7 @@ async fn quick_import(
                 }).collect(),
                 follow_up: extraction.follow_up,
                 summary: extraction.summary,
+                annotated_text: extraction.annotated_text,
                 ocr_text: combined_text,
                 attachment_ids,
             },

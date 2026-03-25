@@ -87,6 +87,9 @@ pub struct ExtractionResult {
     /// Summary
     #[serde(default)]
     pub summary: Option<String>,
+    /// Annotated text with highlighted key fields
+    #[serde(default)]
+    pub annotated_text: Option<String>,
     /// Confidence score
     #[serde(default)]
     pub confidence: Option<f64>,
@@ -190,6 +193,7 @@ mod tests {
             lab_results: vec![],
             follow_up: Some("一周后复诊".to_string()),
             summary: Some("症状缓解".to_string()),
+            annotated_text: Some("【医院】北京医院\n【诊断】感冒".to_string()),
             confidence: Some(0.9),
         };
 
@@ -199,12 +203,14 @@ mod tests {
         assert!(json.contains("\"hospital\":\"北京医院\""));
         assert!(json.contains("\"diagnosis\":\"感冒\""));
         assert!(json.contains("\"阿莫西林\""));
+        assert!(json.contains("\"annotated_text\""));
 
         // Parse back
         let parsed: ExtractionResult = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.hospital, Some("北京医院".to_string()));
         assert_eq!(parsed.medications.len(), 1);
         assert_eq!(parsed.medications[0].name, "阿莫西林");
+        assert_eq!(parsed.annotated_text, Some("【医院】北京医院\n【诊断】感冒".to_string()));
     }
 
     #[test]

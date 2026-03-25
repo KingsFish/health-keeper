@@ -1375,6 +1375,19 @@
                     '<p class="text-gray-700">' + escapeHtml(result.summary) + '</p></div>';
             }
 
+            // Annotated text card - highlight key fields in original text
+            if (result.annotated_text) {
+                // Convert 【xxx】 markers to highlighted spans
+                const annotatedHtml = escapeHtml(result.annotated_text)
+                    .replace(/【([^】]+)】/g, '<mark class="bg-yellow-200 px-1 rounded font-medium">$1</mark>');
+                html += '<div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4">' +
+                    '<h4 class="font-medium text-indigo-800 mb-2 flex items-center gap-2">' +
+                    '<span>🏷️</span> 标注文本</h4>' +
+                    '<div class="text-gray-700 whitespace-pre-wrap font-mono text-sm bg-white p-3 rounded border">' + annotatedHtml + '</div>' +
+                    '<p class="text-xs text-gray-500 mt-2">AI 在原始文本中标注的关键信息</p>' +
+                    '</div>';
+            }
+
             html += '</div>';
 
             document.getElementById('extractionModalContent').innerHTML = html;
