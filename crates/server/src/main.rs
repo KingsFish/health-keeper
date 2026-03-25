@@ -659,67 +659,82 @@ async fn upload_attachment(
     // Verify visit exists
     state.storage.get_visit(&visit_id).await.map_err(|_| StatusCode::NOT_FOUND)?;
 
+    let mut archive_only = false;
+
     while let Some(field) = multipart.next_field().await.ok().flatten() {
-        let file_name = field.file_name().map(|s| s.to_string()).unwrap_or_else(|| "unknown".to_string());
-        let content_type = field.content_type().map(|s| s.to_string());
+        let field_name = field.name().map(|s| s.to_string()).unwrap_or_default();
 
-        if let Ok(data) = field.bytes().await {
-            let file_size = data.len() as i64;
-
-            // Calculate hash
-            use sha2::{Digest, Sha256};
-            let mut hasher = Sha256::new();
-            hasher.update(&data);
-            let hash = hex::encode(hasher.finalize());
-
-            // Determine extension and type
-            let ext = std::path::Path::new(&file_name)
-                .extension()
-                .and_then(|e| e.to_str())
-                .unwrap_or("");
-
-            let attachment_type = determine_attachment_type(&file_name, content_type.as_deref());
-
-            // Generate storage path
-            let stored_name = format!("{}.{}", hash, ext);
-            let relative_path = format!("attachments/{}", stored_name);
-
-            // Save file
-            let data_dir = std::path::Path::new("./data");
-            let attachments_dir = data_dir.join("attachments");
-            std::fs::create_dir_all(&attachments_dir).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-            let dest_path = attachments_dir.join(&stored_name);
-            std::fs::write(&dest_path, &data).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-            // Create attachment record
-            let attachment = health_keeper_core::models::Attachment::new(
-                visit_id.clone(),
-                relative_path.clone(),
-                attachment_type,
-            );
-
-            let mut attachment = attachment;
-            attachment.file_hash = Some(hash);
-            attachment.file_size = Some(file_size);
-            attachment.mime_type = content_type.clone();
-            attachment.original_filename = Some(file_name.clone());
-
-            match state.storage.create_attachment(&attachment).await {
-                Ok(_) => return Ok(Json(AttachmentResponse {
-                    id: attachment.id,
-                    visit_id: attachment.visit_id,
-                    attachment_type: attachment.attachment_type.to_string(),
-                    file_path: attachment.file_path,
-                    original_filename: attachment.original_filename,
-                    file_size: attachment.file_size,
-                    mime_type: attachment.mime_type,
-                    created_at: attachment.created_at.to_rfc3339(),
-                    has_ocr: false,
-                    has_extraction: false,
-                })),
-                Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+        match field_name.as_str() {
+            "archive_only" => {
+                if let Ok(val) = field.text().await {
+                    archive_only = val == "true" || val == "1";
+                }
             }
+            "file" => {
+                let file_name = field.file_name().map(|s| s.to_string()).unwrap_or_else(|| "unknown".to_string());
+                let content_type = field.content_type().map(|s| s.to_string());
+
+                if let Ok(data) = field.bytes().await {
+                    let file_size = data.len() as i64;
+
+                    // Calculate hash
+                    use sha2::{Digest, Sha256};
+                    let mut hasher = Sha256::new();
+                    hasher.update(&data);
+                    let hash = hex::encode(hasher.finalize());
+
+                    // Determine extension and type
+                    let ext = std::path::Path::new(&file_name)
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .unwrap_or("");
+
+                    let attachment_type = determine_attachment_type(&file_name, content_type.as_deref());
+
+                    // Generate storage path
+                    let stored_name = format!("{}.{}", hash, ext);
+                    let relative_path = format!("attachments/{}", stored_name);
+
+                    // Save file
+                    let data_dir = std::path::Path::new("./data");
+                    let attachments_dir = data_dir.join("attachments");
+                    std::fs::create_dir_all(&attachments_dir).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                    let dest_path = attachments_dir.join(&stored_name);
+                    std::fs::write(&dest_path, &data).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+                    // Create attachment record
+                    let attachment = health_keeper_core::models::Attachment::new(
+                        visit_id.clone(),
+                        relative_path.clone(),
+                        attachment_type,
+                    );
+
+                    let mut attachment = attachment;
+                    attachment.file_hash = Some(hash);
+                    attachment.file_size = Some(file_size);
+                    attachment.mime_type = content_type.clone();
+                    attachment.original_filename = Some(file_name.clone());
+                    attachment.processed = archive_only; // Mark as processed if archive-only
+
+                    match state.storage.create_attachment(&attachment).await {
+                        Ok(_) => return Ok(Json(AttachmentResponse {
+                            id: attachment.id,
+                            visit_id: attachment.visit_id,
+                            attachment_type: attachment.attachment_type.to_string(),
+                            file_path: attachment.file_path,
+                            original_filename: attachment.original_filename,
+                            file_size: attachment.file_size,
+                            mime_type: attachment.mime_type,
+                            created_at: attachment.created_at.to_rfc3339(),
+                            has_ocr: false,
+                            has_extraction: false,
+                        })),
+                        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
+                    }
+                }
+            }
+            _ => {}
         }
     }
 
@@ -817,6 +832,9 @@ async fn run_ocr(
     );
 
     state.storage.save_ocr_result(&ocr_result).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Mark attachment as processed (OCR done)
+    state.storage.update_attachment_processed(&attachment_id, true).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(Json(OcrResultResponse {
         id: ocr_result.id,
@@ -1005,6 +1023,7 @@ async fn quick_import(
     mut multipart: Multipart,
 ) -> Sse<impl Stream<Item = Result<Event, axum::Error>>> {
     let mut person_id: Option<String> = None;
+    let mut archive_only: bool = false;
     // (data, content_type, original_filename)
     let mut files: Vec<(Vec<u8>, Option<String>, Option<String>)> = Vec::new();
 
@@ -1017,6 +1036,12 @@ async fn quick_import(
             "person_id" => {
                 person_id = field.text().await.ok();
                 println!("[DEBUG] 收到 person_id: {:?}", person_id);
+            }
+            "archive_only" => {
+                if let Ok(val) = field.text().await {
+                    archive_only = val == "true" || val == "1";
+                    println!("[DEBUG] 收到 archive_only: {}", archive_only);
+                }
             }
             "files" => {
                 let ct = field.content_type().map(|s| s.to_string());
@@ -1058,6 +1083,135 @@ async fn quick_import(
 
         let total_files = files.len();
         yield progress_event("upload", &format!("已接收 {} 个文件", total_files), 10);
+
+        // Archive-only mode: just save files and create a placeholder visit
+        if archive_only {
+            yield progress_event("archive", "归档模式：仅保存文件...", 20);
+
+            let mut attachment_ids: Vec<String> = Vec::new();
+
+            // Save files only (no OCR)
+            for (i, (file_data, content_type, original_filename)) in files.iter().enumerate() {
+                let file_num = i + 1;
+                let progress = 20 + (file_num * 60 / total_files) as u8;
+
+                yield progress_event("archive", &format!("保存第 {}/{} 个文件...", file_num, total_files), progress);
+
+                // Get file extension
+                let ext = if let Some(name) = original_filename {
+                    std::path::Path::new(name)
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .unwrap_or_else(|| match content_type.as_deref() {
+                            Some("application/pdf") => "pdf",
+                            Some("image/png") => "png",
+                            Some("image/gif") => "gif",
+                            Some("image/webp") => "webp",
+                            _ => "jpg",
+                        })
+                } else {
+                    match content_type.as_deref() {
+                        Some("application/pdf") => "pdf",
+                        Some("image/png") => "png",
+                        Some("image/gif") => "gif",
+                        Some("image/webp") => "webp",
+                        _ => "jpg",
+                    }
+                };
+
+                // Calculate hash
+                use sha2::{Digest, Sha256};
+                let mut hasher = Sha256::new();
+                hasher.update(file_data);
+                let hash = hex::encode(hasher.finalize());
+
+                let stored_name = format!("{}.{}", hash, ext);
+                let relative_path = format!("attachments/{}", stored_name);
+
+                // Save to disk
+                let data_dir = std::path::Path::new("./data");
+                let attachments_dir = data_dir.join("attachments");
+                if let Err(e) = std::fs::create_dir_all(&attachments_dir) {
+                    yield error_event(&format!("创建目录失败: {}", e));
+                    return;
+                }
+
+                let dest_path = attachments_dir.join(&stored_name);
+                if let Err(e) = std::fs::write(&dest_path, file_data) {
+                    yield error_event(&format!("保存文件失败: {}", e));
+                    return;
+                }
+
+                // Determine attachment type based on filename/content
+                let attachment_type = determine_attachment_type(
+                    original_filename.as_deref().unwrap_or(""),
+                    content_type.as_deref(),
+                );
+
+                // Create attachment record
+                let mut attachment = health_keeper_core::models::Attachment::new(
+                    String::new(),
+                    relative_path.clone(),
+                    attachment_type,
+                );
+                attachment.file_hash = Some(hash);
+                attachment.file_size = Some(file_data.len() as i64);
+                attachment.mime_type = content_type.clone();
+                attachment.original_filename = original_filename.clone();
+                attachment.processed = true; // Mark as processed since no OCR will be done
+
+                let attachment_id = match state.storage.create_attachment(&attachment).await {
+                    Ok(id) => id,
+                    Err(e) => {
+                        yield error_event(&format!("保存附件记录失败: {}", e));
+                        return;
+                    }
+                };
+                attachment_ids.push(attachment_id);
+            }
+
+            // Create a placeholder visit record
+            let visit = Visit::new(
+                person_id.unwrap_or_default(),
+                chrono::Utc::now().date_naive(),
+            ).with_hospital("待整理".to_string());
+
+            if let Err(e) = state.storage.create_visit(&visit).await {
+                yield error_event(&format!("创建就诊记录失败: {}", e));
+                return;
+            }
+
+            // Link attachments to the visit
+            for attachment_id in &attachment_ids {
+                if let Err(e) = state.storage.update_attachment_visit(attachment_id, &visit.id).await {
+                    eprintln!("[WARN] Failed to link attachment {}: {}", attachment_id, e);
+                }
+            }
+
+            yield progress_event("complete", "归档完成！", 100);
+
+            // Send final result
+            yield Ok(Event::default().json_data(ProgressComplete {
+                data: QuickImportResponse {
+                    visit_date: Some(visit.visit_date.to_string()),
+                    hospital: Some("待整理".to_string()),
+                    department: None,
+                    doctor: None,
+                    chief_complaint: None,
+                    diagnosis: None,
+                    treatment: None,
+                    medications: vec![],
+                    lab_results: vec![],
+                    follow_up: None,
+                    summary: None,
+                    annotated_text: None,
+                    ocr_text: String::new(),
+                    attachment_ids,
+                },
+            }).unwrap());
+
+            return;
+        }
 
         // Initialize OCR
         yield progress_event("init", "初始化 OCR 服务...", 15);
@@ -1167,7 +1321,9 @@ async fn quick_import(
             attachment.file_size = Some(file_data.len() as i64);
             attachment.mime_type = content_type.clone();
             attachment.original_filename = original_filename.clone();
-            println!("[DEBUG] 附件对象创建完成, file_path: {}", attachment.file_path);
+            // In archive mode, mark as processed immediately
+            attachment.processed = archive_only;
+            println!("[DEBUG] 附件对象创建完成, file_path: {}, archive_only: {}", attachment.file_path, archive_only);
 
             println!("[DEBUG] 调用 storage.create_attachment...");
             let attachment_id = match state.storage.create_attachment(&attachment).await {

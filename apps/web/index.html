@@ -223,6 +223,10 @@
                             <input type="file" id="quickImportFiles" accept="image/*,.pdf" multiple class="flex-1 border rounded-lg px-3 py-2 text-sm">
                             <button type="button" onclick="quickImportFromForm()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm whitespace-nowrap">识别</button>
                         </div>
+                        <div class="flex items-center gap-2 mt-2">
+                            <input type="checkbox" id="archiveOnly" class="rounded border-gray-300">
+                            <label for="archiveOnly" class="text-sm text-gray-600">仅归档（跳过识别，创建"待整理"记录）</label>
+                        </div>
                         <div id="quickImportProgress" class="hidden mt-3">
                             <div class="w-full bg-gray-200 rounded-full h-2">
                                 <div id="progressBarFill" class="bg-green-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
@@ -294,6 +298,10 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">选择文件</label>
                         <input type="file" name="file" accept="image/*,.pdf" required class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="uploadArchiveOnly" class="rounded border-gray-300">
+                        <label for="uploadArchiveOnly" class="text-sm text-gray-600">仅归档（跳过识别）</label>
                     </div>
                     <div class="text-sm text-gray-500">支持图片和 PDF 文件</div>
                     <div class="flex justify-end gap-2">
@@ -940,6 +948,7 @@
         async function quickImportFromForm() {
             const fileInput = document.getElementById('quickImportFiles');
             const files = fileInput.files;
+            const archiveOnly = document.getElementById('archiveOnly').checked;
 
             if (!files || files.length === 0) {
                 alert('请选择文件');
@@ -952,12 +961,13 @@
                 document.getElementById('progressBarFill').style.width = percent + '%';
                 document.getElementById('progressMessage').textContent = message;
             };
-            updateProgress('上传文件中...', 5);
+            updateProgress(archiveOnly ? '归档中...' : '上传文件中...', 5);
 
             const formData = new FormData();
             for (let i = 0; i < files.length; i++) {
                 formData.append('files', files[i]);
             }
+            formData.append('archive_only', archiveOnly ? 'true' : 'false');
 
             try {
                 const res = await fetch(API + '/api/quick-import', {
@@ -1011,15 +1021,30 @@
                 }
 
                 if (result) {
-                    updateProgress('识别完成！', 100);
-                    prefillVisitForm(result);
-                    updateUploadedFilesList(files);
+                    const isArchiveMode = document.getElementById('archiveOnly').checked;
+                    if (isArchiveMode) {
+                        updateProgress('归档完成！', 100);
+                        // Archive mode: show success message and refresh visits
+                        const container = document.getElementById('uploadedFiles');
+                        container.textContent = '✓ 已归档 ' + files.length + ' 个文件，已创建"待整理"记录';
+                        container.className = 'mt-2 text-sm text-green-700';
+                        // Reset form and refresh
+                        setTimeout(() => {
+                            closeVisitModal();
+                            loadVisits(selectedPersonId);
+                        }, 1000);
+                    } else {
+                        updateProgress('识别完成！', 100);
+                        prefillVisitForm(result);
+                        updateUploadedFilesList(files);
+                    }
                 } else {
                     throw new Error('未收到识别结果');
                 }
 
             } catch (err) {
-                alert('识别失败: ' + err.message);
+                const isArchiveMode = document.getElementById('archiveOnly').checked;
+                alert(isArchiveMode ? '归档失败: ' + err.message : '识别失败: ' + err.message);
                 document.getElementById('quickImportProgress').classList.add('hidden');
             }
         }
@@ -1242,6 +1267,7 @@
         // ==================== Upload ====================
         function showUploadModal(visitId) {
             document.getElementById('uploadVisitId').value = visitId;
+            document.getElementById('uploadArchiveOnly').checked = false;
             document.getElementById('uploadModal').classList.add('active');
         }
 
@@ -1254,9 +1280,11 @@
             const form = e.target;
             const visitId = document.getElementById('uploadVisitId').value;
             const file = form.file.files[0];
+            const archiveOnly = document.getElementById('uploadArchiveOnly').checked;
 
             const formData = new FormData();
             formData.append('file', file);
+            formData.append('archive_only', archiveOnly ? 'true' : 'false');
 
             const res = await fetch(API + `/api/visits/${visitId}/attachments`, {
                 method: 'POST',

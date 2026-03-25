@@ -65,6 +65,7 @@ pub trait Storage: Send + Sync {
     async fn get_attachment(&self, id: &str) -> Result<Attachment, StorageError>;
     async fn list_attachments(&self, visit_id: &str) -> Result<Vec<Attachment>, StorageError>;
     async fn update_attachment_visit(&self, attachment_id: &str, visit_id: &str) -> Result<(), StorageError>;
+    async fn update_attachment_processed(&self, attachment_id: &str, processed: bool) -> Result<(), StorageError>;
     async fn delete_attachment(&self, id: &str) -> Result<(), StorageError>;
 
     // OCR operations
