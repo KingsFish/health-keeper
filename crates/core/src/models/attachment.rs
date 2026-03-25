@@ -25,6 +25,9 @@ pub struct Attachment {
     pub mime_type: Option<String>,
     /// Original filename
     pub original_filename: Option<String>,
+    /// Whether OCR/extraction processing has been completed
+    #[serde(default)]
+    pub processed: bool,
     /// Record creation time
     pub created_at: DateTime<Utc>,
 }
@@ -41,6 +44,7 @@ impl Attachment {
             file_size: None,
             mime_type: None,
             original_filename: None,
+            processed: false,
             created_at: Utc::now(),
         }
     }

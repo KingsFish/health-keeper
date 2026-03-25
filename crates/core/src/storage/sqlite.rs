@@ -23,6 +23,11 @@ impl SqliteStorage {
             .connect(database_url)
             .await?;
 
+        // Enable foreign key constraints
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&pool)
+            .await?;
+
         Ok(Self { pool })
     }
 
@@ -413,8 +418,8 @@ impl Storage for SqliteStorage {
 
         sqlx::query(
             r#"
-            INSERT INTO attachments (id, visit_id, type, file_path, file_hash, file_size, mime_type, original_filename, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO attachments (id, visit_id, type, file_path, file_hash, file_size, mime_type, original_filename, processed, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(&id)
@@ -425,6 +430,7 @@ impl Storage for SqliteStorage {
         .bind(attachment.file_size)
         .bind(&attachment.mime_type)
         .bind(&attachment.original_filename)
+        .bind(attachment.processed)
         .bind(attachment.created_at)
         .execute(&self.pool)
         .await?;
@@ -448,6 +454,7 @@ impl Storage for SqliteStorage {
                 file_size: row.get("file_size"),
                 mime_type: row.get("mime_type"),
                 original_filename: row.get("original_filename"),
+                processed: row.get("processed"),
                 created_at: row.get("created_at"),
             }),
             None => Err(StorageError::NotFound(format!(
@@ -474,6 +481,7 @@ impl Storage for SqliteStorage {
                 file_size: row.get("file_size"),
                 mime_type: row.get("mime_type"),
                 original_filename: row.get("original_filename"),
+                processed: row.get("processed"),
                 created_at: row.get("created_at"),
             })
             .collect())
@@ -482,6 +490,15 @@ impl Storage for SqliteStorage {
     async fn update_attachment_visit(&self, attachment_id: &str, visit_id: &str) -> Result<(), StorageError> {
         sqlx::query("UPDATE attachments SET visit_id = ? WHERE id = ?")
             .bind(visit_id)
+            .bind(attachment_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    async fn update_attachment_processed(&self, attachment_id: &str, processed: bool) -> Result<(), StorageError> {
+        sqlx::query("UPDATE attachments SET processed = ? WHERE id = ?")
+            .bind(processed)
             .bind(attachment_id)
             .execute(&self.pool)
             .await?;
@@ -684,6 +701,7 @@ impl Storage for SqliteStorage {
             include_str!("../../../../migrations/002_allow_null_visit_id.sql"),
             include_str!("../../../../migrations/003_add_summary.sql"),
             include_str!("../../../../migrations/004_add_health_info.sql"),
+            include_str!("../../../../migrations/005_add_processed.sql"),
         ];
 
         for migration_sql in migrations {

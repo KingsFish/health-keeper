@@ -356,6 +356,7 @@ pub async fn handle_import<S: Storage>(storage: &S, cmd: ImportCommand) -> Resul
         file_size: Some(file_size),
         mime_type,
         original_filename: Some(file_name.clone()),
+        processed: false,
         created_at: chrono::Utc::now(),
     };
 
