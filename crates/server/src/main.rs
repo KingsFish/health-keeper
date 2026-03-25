@@ -920,6 +920,37 @@ async fn run_extraction(
     }))
 }
 
+async fn get_extraction(
+    State(state): State<Arc<AppState>>,
+    Path(attachment_id): Path<String>,
+) -> Result<Json<ExtractionResponse>, StatusCode> {
+    // Get the latest extracted data for this attachment
+    let extracted_list = state.storage.get_extracted_data(&attachment_id).await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let extracted = extracted_list.into_iter().next()
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    // Parse the stored JSON
+    let result: health_keeper_core::ai::ExtractionResult = serde_json::from_str(&extracted.content)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(ExtractionResponse {
+        diagnosis: result.diagnosis,
+        chief_complaint: result.chief_complaint,
+        treatment: result.treatment,
+        medications: result.medications.into_iter().map(|m| MedicationResponse {
+            name: m.name,
+            dosage: m.dosage,
+            frequency: m.frequency,
+            duration: m.duration,
+        }).collect(),
+        follow_up: result.follow_up,
+        summary: result.summary,
+        annotated_text: result.annotated_text,
+    }))
+}
+
 async fn search(
     State(state): State<Arc<AppState>>,
     Query(query): Query<SearchQuery>,
@@ -1335,7 +1366,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/visits/:id", get(get_visit).put(update_visit_handler).delete(delete_visit))
         .route("/api/visits/:id/attachments", post(upload_attachment))
         .route("/api/attachments/:id/ocr", post(run_ocr).get(get_ocr))
-        .route("/api/attachments/:id/extract", post(run_extraction))
+        .route("/api/attachments/:id/extract", post(run_extraction).get(get_extraction))
         .route("/api/search", get(search))
         .route("/api/quick-import", post(quick_import))
         // Static files
