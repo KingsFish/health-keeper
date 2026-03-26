@@ -730,6 +730,17 @@
         </div>
     </div>
 
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 z-[100] pointer-events-none opacity-0 transition-all duration-300 -translate-y-4">
+        <div class="flex items-center gap-3 px-5 py-3 rounded-2xl shadow-lg" id="toastContent">
+            <div id="toastIcon" class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"></div>
+            <div>
+                <div id="toastTitle" class="font-medium text-sm"></div>
+                <div id="toastMessage" class="text-xs opacity-80 mt-0.5"></div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API = '';
         let persons = [];
@@ -1582,10 +1593,12 @@
             await fetchAPI('/api/persons', { method: 'POST', body: JSON.stringify(data) });
             closePersonModal();
             loadPersons();
+            showToast('添加成功', `成员 ${data.name} 已添加`, 'success');
         });
 
         async function deletePerson(id) {
             if (!confirm('确定删除该成员？')) return;
+            const personName = getPersonName(id);
             await fetchAPI(`/api/persons/${id}`, { method: 'DELETE' });
 
             // 如果删除的是当前选中的成员，清除选中状态
@@ -1598,6 +1611,7 @@
             if (selectedPersonId) {
                 loadVisits(selectedPersonId);
             }
+            showToast('删除成功', `成员 ${personName} 已删除`, 'info');
         }
 
         // ==================== Visit Actions ====================
@@ -1774,8 +1788,9 @@
                 await fetchAPI('/api/visits', { method: 'POST', body: JSON.stringify(data) });
                 closeVisitModal();
                 loadVisits();
+                showToast('保存成功', '就诊记录已创建', 'success');
             } catch (err) {
-                alert('保存失败: ' + err.message);
+                showToast('保存失败', err.message, 'error');
             }
         });
 
@@ -2000,8 +2015,10 @@
             if (!confirm('确定删除该就诊记录？')) return;
             try {
                 await fetchAPI(`/api/visits/${id}`, { method: 'DELETE' });
+                showToast('删除成功', '就诊记录已删除', 'info');
             } catch (e) {
                 console.error('删除失败:', e);
+                showToast('删除失败', e.message, 'error');
             }
             closeVisitDetail();
             loadVisits();
@@ -2354,6 +2371,68 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // ==================== Toast Notification ====================
+        function showToast(title, message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastContent = document.getElementById('toastContent');
+            const toastIcon = document.getElementById('toastIcon');
+            const toastTitle = document.getElementById('toastTitle');
+            const toastMessage = document.getElementById('toastMessage');
+
+            // 设置图标和颜色
+            const config = {
+                success: {
+                    icon: '✓',
+                    bgClass: 'bg-green-500',
+                    contentBg: 'bg-white',
+                    titleColor: 'text-gray-800',
+                    messageColor: 'text-gray-500'
+                },
+                error: {
+                    icon: '✕',
+                    bgClass: 'bg-red-500',
+                    contentBg: 'bg-white',
+                    titleColor: 'text-gray-800',
+                    messageColor: 'text-gray-500'
+                },
+                warning: {
+                    icon: '⚠',
+                    bgClass: 'bg-amber-500',
+                    contentBg: 'bg-white',
+                    titleColor: 'text-gray-800',
+                    messageColor: 'text-gray-500'
+                },
+                info: {
+                    icon: 'ℹ',
+                    bgClass: 'bg-blue-500',
+                    contentBg: 'bg-white',
+                    titleColor: 'text-gray-800',
+                    messageColor: 'text-gray-500'
+                }
+            };
+
+            const c = config[type] || config.success;
+
+            toastIcon.className = `w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold ${c.bgClass}`;
+            toastIcon.textContent = c.icon;
+            toastContent.className = `flex items-center gap-3 px-5 py-3 rounded-2xl shadow-lg ${c.contentBg}`;
+            toastTitle.className = `font-medium text-sm ${c.titleColor}`;
+            toastTitle.textContent = title;
+            toastMessage.className = `text-xs mt-0.5 ${c.messageColor}`;
+            toastMessage.textContent = message;
+
+            // 显示
+            toast.classList.remove('opacity-0', '-translate-y-4');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            // 3秒后自动隐藏
+            clearTimeout(window.toastTimeout);
+            window.toastTimeout = setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', '-translate-y-4');
+            }, 3000);
         }
 
         function formatBytes(bytes) {
