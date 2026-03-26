@@ -369,34 +369,51 @@
         </div>
 
         <!-- Search Bar -->
-        <div class="bg-white rounded-lg shadow p-4 mb-6">
-            <div class="flex gap-4 mb-4">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
+            <div class="flex gap-3 items-center">
+                <!-- 搜索图标 -->
+                <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+                <!-- 搜索输入框 -->
                 <input type="text" id="searchInput" placeholder="搜索病历、诊断、药物..."
-                    class="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <button onclick="search()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+                    class="flex-1 bg-gray-50 border-0 rounded-xl px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
+                <!-- 搜索按钮 -->
+                <button onclick="search()" class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-5 py-3 rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all font-medium shadow-sm flex-shrink-0">
                     搜索
                 </button>
-                <button onclick="toggleFilters()" class="border px-4 py-2 rounded-lg hover:bg-gray-50">
-                    <span id="filterToggleText">高级筛选</span>
+                <!-- 筛选按钮 -->
+                <button onclick="toggleFilters()" class="flex items-center gap-2 px-4 py-3 rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all flex-shrink-0">
+                    <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+                    </svg>
+                    <span id="filterToggleText" class="text-gray-600 text-sm font-medium">筛选</span>
                 </button>
             </div>
-            <!-- Filters -->
-            <div id="filtersPanel" class="hidden grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
-                <div>
-                    <label class="block text-sm text-gray-600 mb-1">成员</label>
-                    <select id="filterPerson" class="w-full border rounded-lg px-3 py-2">
-                        <option value="">全部成员</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm text-gray-600 mb-1">医院</label>
-                    <input type="text" id="filterHospital" placeholder="输入医院名称" class="w-full border rounded-lg px-3 py-2">
-                </div>
-                <div>
-                    <label class="block text-sm text-gray-600 mb-1">医生</label>
-                    <select id="filterDoctor" class="w-full border rounded-lg px-3 py-2">
-                        <option value="">全部医生</option>
-                    </select>
+            <!-- Filters Panel -->
+            <div id="filtersPanel" class="hidden mt-4 pt-4 border-t border-gray-100">
+                <div class="flex gap-3 flex-wrap">
+                    <!-- 成员筛选 -->
+                    <div class="flex-1 min-w-[150px]">
+                        <label class="block text-xs text-gray-500 mb-1.5 font-medium">成员</label>
+                        <select id="filterPerson" class="w-full bg-gray-50 border-0 rounded-xl px-4 py-2.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">全部成员</option>
+                        </select>
+                    </div>
+                    <!-- 医院筛选 -->
+                    <div class="flex-1 min-w-[150px]">
+                        <label class="block text-xs text-gray-500 mb-1.5 font-medium">医院</label>
+                        <input type="text" id="filterHospital" placeholder="输入医院名称" class="w-full bg-gray-50 border-0 rounded-xl px-4 py-2.5 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <!-- 医生筛选 -->
+                    <div class="flex-1 min-w-[150px]">
+                        <label class="block text-xs text-gray-500 mb-1.5 font-medium">医生</label>
+                        <select id="filterDoctor" class="w-full bg-gray-50 border-0 rounded-xl px-4 py-2.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">全部医生</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
