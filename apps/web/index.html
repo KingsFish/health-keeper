@@ -114,6 +114,54 @@
             </div>
         </div>
 
+        <!-- Quick Actions -->
+        <div class="grid grid-cols-3 gap-4 mb-6">
+            <!-- 快速录入 - 突出显示 -->
+            <button onclick="showVisitModal()" class="bg-white rounded-xl p-4 shadow-sm border-2 border-blue-500 hover:shadow-md transition-all group">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white group-hover:scale-110 transition-transform">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                    </div>
+                    <div class="text-left">
+                        <div class="font-semibold text-gray-900">快速录入</div>
+                        <div class="text-xs text-gray-500">上传病历自动识别</div>
+                    </div>
+                </div>
+            </button>
+
+            <!-- 搜索记录 -->
+            <button onclick="focusSearch()" class="bg-white rounded-xl p-4 shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all group">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="text-left">
+                        <div class="font-semibold text-gray-900">搜索记录</div>
+                        <div class="text-xs text-gray-500">查找历史病历</div>
+                    </div>
+                </div>
+            </button>
+
+            <!-- 家庭成员 -->
+            <button onclick="document.getElementById('personsList').scrollIntoView({behavior: 'smooth'})" class="bg-white rounded-xl p-4 shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all group">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="text-left">
+                        <div class="font-semibold text-gray-900">家庭成员</div>
+                        <div class="text-xs text-gray-500"><span id="memberCount">0</span> 位成员</div>
+                    </div>
+                </div>
+            </button>
+        </div>
+
         <!-- Search Bar -->
         <div class="bg-white rounded-lg shadow p-4 mb-6">
             <div class="flex gap-4 mb-4">
@@ -417,6 +465,7 @@
 
             renderPersons();
             updatePersonSelect();
+            updateMemberCount(); // 更新快速操作区成员数量
             updateFilterSelects(); // Update filter dropdowns when visible
         }
 
@@ -1595,6 +1644,21 @@
                 }
             }
             document.getElementById('greetingName').textContent = userName;
+        }
+
+        // ==================== Quick Actions ====================
+        function focusSearch() {
+            const input = document.getElementById('searchInput');
+            input.focus();
+            // 展开筛选面板
+            const panel = document.getElementById('filtersPanel');
+            if (panel.classList.contains('hidden')) {
+                toggleFilters();
+            }
+        }
+
+        function updateMemberCount() {
+            document.getElementById('memberCount').textContent = persons.length;
         }
 
         // ==================== Helpers ====================
