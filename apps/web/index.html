@@ -31,69 +31,205 @@
 
         .loading { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .modal { display: none; }
+
+        /* Modal 基础样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            align-items: center;
+            justify-content: center;
+        }
         .modal.active { display: flex; }
 
-        /* 预览模态框样式 */
-        #previewModal { background: rgba(0,0,0,0.9); }
-        #previewModal .preview-container {
+        /* Modal 遮罩层 */
+        .modal-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+
+        /* Modal 内容卡片 */
+        .modal-content {
+            position: relative;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: modalSlideIn 0.2s ease-out;
+        }
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Modal 标题栏 */
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .modal-header h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .modal-close {
+            width: 32px;
+            height: 32px;
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 100%;
-            height: 100%;
-            position: relative;
-        }
-        #previewModal img, #previewModal iframe {
-            max-width: 90vw;
-            max-height: 85vh;
-            transition: transform 0.2s ease;
-        }
-        #previewModal .preview-toolbar {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 8px;
-            background: rgba(0,0,0,0.7);
-            padding: 8px 16px;
+            background: #f1f5f9;
+            border: none;
             border-radius: 8px;
-        }
-        #previewModal .preview-toolbar button {
-            background: rgba(255,255,255,0.1);
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 4px;
+            color: #64748b;
+            font-size: 20px;
             cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .modal-close:hover {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+
+        /* Modal 表单区 */
+        .modal-body {
+            padding: 20px;
+        }
+
+        /* Modal 底部操作栏 */
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 16px 20px;
+            border-top: 1px solid #e2e8f0;
+            background: #f8fafc;
+            border-radius: 0 0 16px 16px;
+        }
+
+        /* Modal 底部上滑面板 */
+        .modal-bottom-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 20px 20px 0 0;
+            padding: 24px 20px;
+            box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.1);
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            z-index: 100;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-bottom-sheet.active {
+            transform: translateY(0);
+        }
+
+        /* 选择按钮组 */
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .btn-group-item {
+            padding: 10px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: white;
+            color: #64748b;
             font-size: 14px;
-        }
-        #previewModal .preview-toolbar button:hover {
-            background: rgba(255,255,255,0.2);
-        }
-        #previewModal .preview-filename {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: white;
-            background: rgba(0,0,0,0.5);
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        #previewModal .close-btn {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            color: white;
-            font-size: 32px;
             cursor: pointer;
-            background: none;
+            transition: all 0.15s ease;
+        }
+        .btn-group-item:hover {
+            border-color: #3b82f6;
+            color: #3b82f6;
+        }
+        .btn-group-item.active {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border-color: #3b82f6;
+            color: white;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+        }
+
+        /* 表单标签 */
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        /* 表单输入框 */
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            color: #1e293b;
+            transition: all 0.15s ease;
+            outline: none;
+        }
+        .form-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .form-input::placeholder {
+            color: #94a3b8;
+        }
+
+        /* 表单组 */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
             border: none;
         }
-        #previewModal .close-btn:hover { color: #ccc; }
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+        .btn-secondary:hover {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+        }
+        .btn-primary:hover {
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            transform: translateY(-1px);
+        }
 
         /* Timeline styles */
         .timeline-container {
@@ -289,85 +425,93 @@
         </div>
 
         <!-- Extraction Result Modal -->
-        <div id="extractionModal" class="modal fixed inset-0 bg-black/50 items-center justify-center z-50">
-            <div class="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                <div class="p-4 border-b flex justify-between items-center sticky top-0 bg-white">
-                    <h3 class="text-lg font-semibold" id="extractionModalTitle">AI 提取结果</h3>
-                    <button onclick="closeExtractionModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        <div id="extractionModal" class="modal">
+            <div class="modal-overlay" onclick="closeExtractionModal()"></div>
+            <div class="modal-content w-full max-w-2xl mx-4">
+                <div class="modal-header">
+                    <h3 id="extractionModalTitle">AI 提取结果</h3>
+                    <button class="modal-close" onclick="closeExtractionModal()">&times;</button>
                 </div>
-                <div id="extractionModalContent" class="p-4"></div>
-                <div class="p-4 border-t flex justify-end gap-2 bg-gray-50">
-                    <button onclick="closeExtractionModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-100">关闭</button>
-                    <button onclick="applyExtractionToVisit()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">应用到记录</button>
+                <div id="extractionModalContent" class="modal-body"></div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeExtractionModal()">关闭</button>
+                    <button class="btn btn-primary" onclick="applyExtractionToVisit()">应用到记录</button>
                 </div>
             </div>
         </div>
 
         <!-- Visit Detail Modal -->
-        <div id="visitDetailModal" class="modal fixed inset-0 bg-black/50 items-center justify-center z-50">
-            <div class="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                <div class="p-4 border-b flex justify-between items-center sticky top-0 bg-white">
-                    <h3 class="text-lg font-semibold" id="visitDetailTitle">就诊详情</h3>
+        <div id="visitDetailModal" class="modal">
+            <div class="modal-overlay" onclick="closeVisitDetail()"></div>
+            <div class="modal-content w-full max-w-4xl mx-4">
+                <div class="modal-header">
+                    <h3 id="visitDetailTitle">就诊详情</h3>
                     <div class="flex items-center gap-2">
-                        <button onclick="toggleVisitEditMode()" id="visitEditBtn" class="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">编辑</button>
-                        <button onclick="closeVisitDetail()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+                        <button onclick="toggleVisitEditMode()" id="visitEditBtn" class="btn btn-primary text-sm py-1.5 px-3">编辑</button>
+                        <button class="modal-close" onclick="closeVisitDetail()">&times;</button>
                     </div>
                 </div>
-                <div id="visitDetailContent" class="p-4"></div>
+                <div id="visitDetailContent" class="modal-body"></div>
             </div>
         </div>
 
         <!-- Add Person Modal -->
-        <div id="personModal" class="modal fixed inset-0 bg-black/50 items-center justify-center z-50">
-            <div class="bg-white rounded-lg max-w-md w-full mx-4">
-                <div class="p-4 border-b">
-                    <h3 class="text-lg font-semibold">添加成员</h3>
+        <div id="personModal" class="modal">
+            <div class="modal-overlay" onclick="closePersonModal()"></div>
+            <div class="modal-content w-full max-w-md mx-4">
+                <div class="modal-header">
+                    <h3>添加成员</h3>
+                    <button class="modal-close" onclick="closePersonModal()">&times;</button>
                 </div>
-                <form id="personForm" class="p-4 space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">姓名 *</label>
-                        <input type="text" name="name" required class="w-full border rounded-lg px-3 py-2">
+                <form id="personForm" class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">姓名 *</label>
+                        <input type="text" name="name" required class="form-input" placeholder="请输入姓名">
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">关系</label>
-                        <select name="relationship" class="w-full border rounded-lg px-3 py-2">
-                            <option value="self">本人</option>
-                            <option value="spouse">配偶</option>
-                            <option value="child">子女</option>
-                            <option value="parent">父母</option>
-                            <option value="sibling">兄弟姐妹</option>
-                            <option value="other">其他</option>
-                        </select>
+                    <div class="form-group">
+                        <label class="form-label">关系</label>
+                        <div class="btn-group" id="relationBtnGroup">
+                            <button type="button" class="btn-group-item active" onclick="selectRelation(this, 'self')">本人</button>
+                            <button type="button" class="btn-group-item" onclick="selectRelation(this, 'spouse')">配偶</button>
+                            <button type="button" class="btn-group-item" onclick="selectRelation(this, 'child')">子女</button>
+                            <button type="button" class="btn-group-item" onclick="selectRelation(this, 'parent')">父母</button>
+                            <button type="button" class="btn-group-item" onclick="selectRelation(this, 'sibling')">兄弟姐妹</button>
+                            <button type="button" class="btn-group-item" onclick="selectRelation(this, 'other')">其他</button>
+                        </div>
+                        <input type="hidden" name="relationship" value="self">
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">出生日期</label>
-                        <input type="date" name="birth_date" class="w-full border rounded-lg px-3 py-2">
+                    <div class="form-group">
+                        <label class="form-label">出生日期</label>
+                        <input type="date" name="birth_date" class="form-input">
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">性别</label>
-                        <select name="gender" class="w-full border rounded-lg px-3 py-2">
-                            <option value="">未知</option>
-                            <option value="male">男</option>
-                            <option value="female">女</option>
-                        </select>
-                    </div>
-                    <div class="flex justify-end gap-2">
-                        <button type="button" onclick="closePersonModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">取消</button>
-                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">保存</button>
+                    <div class="form-group">
+                        <label class="form-label">性别</label>
+                        <div class="btn-group" id="genderBtnGroup">
+                            <button type="button" class="btn-group-item" onclick="selectGender(this, 'male')">男</button>
+                            <button type="button" class="btn-group-item" onclick="selectGender(this, 'female')">女</button>
+                            <button type="button" class="btn-group-item active" onclick="selectGender(this, '')">未知</button>
+                        </div>
+                        <input type="hidden" name="gender" value="">
                     </div>
                 </form>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closePersonModal()">取消</button>
+                    <button type="submit" form="personForm" class="btn btn-primary">保存</button>
+                </div>
             </div>
         </div>
 
         <!-- Add Visit Modal -->
-        <div id="visitModal" class="modal fixed inset-0 bg-black/50 items-center justify-center z-50">
-            <div class="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                <div class="p-4 border-b">
-                    <h3 class="text-lg font-semibold">添加就诊记录</h3>
+        <div id="visitModal" class="modal">
+            <div class="modal-overlay" onclick="closeVisitModal()"></div>
+            <div class="modal-content w-full max-w-2xl mx-4">
+                <div class="modal-header">
+                    <h3>添加就诊记录</h3>
+                    <button class="modal-close" onclick="closeVisitModal()">&times;</button>
                 </div>
-                <form id="visitForm" class="p-4 space-y-4">
+                <form id="visitForm" class="modal-body">
                     <!-- 快速录入区域 -->
-                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
                         <div class="flex items-center justify-between mb-2">
                             <h4 class="font-medium text-green-800">📷 快速录入</h4>
                             <span class="text-sm text-green-600">上传病历自动识别</span>
@@ -389,109 +533,111 @@
                         <div id="uploadedFiles" class="mt-2 text-sm text-gray-500"></div>
                     </div>
 
-                    <hr class="my-2">
+                    <hr class="my-4">
 
                     <!-- 表单字段 -->
                     <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">患者 *</label>
-                            <select name="person_id" required id="visitPersonSelect" class="w-full border rounded-lg px-3 py-2"></select>
+                        <div class="form-group">
+                            <label class="form-label">患者 *</label>
+                            <select name="person_id" required id="visitPersonSelect" class="form-input"></select>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">就诊日期 *</label>
-                            <input type="date" name="visit_date" required class="w-full border rounded-lg px-3 py-2">
+                        <div class="form-group">
+                            <label class="form-label">就诊日期 *</label>
+                            <input type="date" name="visit_date" required class="form-input">
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">医院</label>
-                            <input type="text" name="hospital" class="w-full border rounded-lg px-3 py-2">
+                        <div class="form-group">
+                            <label class="form-label">医院</label>
+                            <input type="text" name="hospital" class="form-input">
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">科室</label>
-                            <input type="text" name="department" class="w-full border rounded-lg px-3 py-2">
+                        <div class="form-group">
+                            <label class="form-label">科室</label>
+                            <input type="text" name="department" class="form-input">
                         </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">医生</label>
-                        <input type="text" name="doctor" class="w-full border rounded-lg px-3 py-2">
+                    <div class="form-group">
+                        <label class="form-label">医生</label>
+                        <input type="text" name="doctor" class="form-input">
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">主诉</label>
-                        <textarea name="chief_complaint" rows="2" class="w-full border rounded-lg px-3 py-2"></textarea>
+                    <div class="form-group">
+                        <label class="form-label">主诉</label>
+                        <textarea name="chief_complaint" rows="2" class="form-input"></textarea>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">诊断</label>
-                        <textarea name="diagnosis" rows="2" class="w-full border rounded-lg px-3 py-2"></textarea>
+                    <div class="form-group">
+                        <label class="form-label">诊断</label>
+                        <textarea name="diagnosis" rows="2" class="form-input"></textarea>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">摘要</label>
-                        <textarea name="summary" rows="2" class="w-full border rounded-lg px-3 py-2" placeholder="病历摘要"></textarea>
+                    <div class="form-group">
+                        <label class="form-label">摘要</label>
+                        <textarea name="summary" rows="2" class="form-input" placeholder="病历摘要"></textarea>
                     </div>
 
                     <!-- 隐藏字段：保存已上传的附件ID -->
                     <input type="hidden" id="uploadedAttachmentIds" value="">
-
-                    <div class="flex justify-end gap-2 pt-2">
-                        <button type="button" onclick="closeVisitModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">取消</button>
-                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">保存</button>
-                    </div>
                 </form>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeVisitModal()">取消</button>
+                    <button type="submit" form="visitForm" class="btn btn-primary">保存</button>
+                </div>
             </div>
         </div>
 
         <!-- Upload Modal -->
-        <div id="uploadModal" class="modal fixed inset-0 bg-black/50 items-center justify-center z-50">
-            <div class="bg-white rounded-lg max-w-md w-full mx-4">
-                <div class="p-4 border-b">
-                    <h3 class="text-lg font-semibold">上传文件</h3>
+        <div id="uploadModal" class="modal">
+            <div class="modal-overlay" onclick="closeUploadModal()"></div>
+            <div class="modal-content w-full max-w-md mx-4">
+                <div class="modal-header">
+                    <h3>上传文件</h3>
+                    <button class="modal-close" onclick="closeUploadModal()">&times;</button>
                 </div>
-                <form id="uploadForm" class="p-4 space-y-4">
+                <form id="uploadForm" class="modal-body">
                     <input type="hidden" name="visit_id" id="uploadVisitId">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">选择文件</label>
-                        <input type="file" name="file" accept="image/*,.pdf" required class="w-full border rounded-lg px-3 py-2">
+                    <div class="form-group">
+                        <label class="form-label">选择文件</label>
+                        <input type="file" name="file" accept="image/*,.pdf" required class="form-input">
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 mb-4">
                         <input type="checkbox" id="uploadArchiveOnly" class="rounded border-gray-300">
                         <label for="uploadArchiveOnly" class="text-sm text-gray-600">仅归档（跳过识别）</label>
                     </div>
-                    <div class="text-sm text-gray-500">支持图片和 PDF 文件</div>
-                    <div class="flex justify-end gap-2">
-                        <button type="button" onclick="closeUploadModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">取消</button>
-                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">上传</button>
-                    </div>
+                    <p class="text-sm text-gray-500">支持图片和 PDF 文件</p>
                 </form>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeUploadModal()">取消</button>
+                    <button type="submit" form="uploadForm" class="btn btn-primary">上传</button>
+                </div>
             </div>
         </div>
 
         <!-- Preview Modal -->
-        <div id="previewModal" class="modal fixed inset-0 items-center justify-center z-50">
-            <button class="close-btn" onclick="closePreview()">&times;</button>
-            <div class="preview-filename" id="previewFilename"></div>
-            <div class="preview-container" id="previewContainer" onclick="closePreview()">
-                <img id="previewImage" src="" alt="预览" onclick="event.stopPropagation()">
+        <div id="previewModal" class="modal" style="background: rgba(0,0,0,0.9);">
+            <button class="close-btn" onclick="closePreview()" style="position: absolute; top: 20px; right: 20px; color: white; font-size: 32px; cursor: pointer; background: none; border: none; z-index: 10;">&times;</button>
+            <div class="preview-filename" id="previewFilename" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); color: white; background: rgba(0,0,0,0.5); padding: 6px 12px; border-radius: 4px; font-size: 14px;"></div>
+            <div class="preview-container" id="previewContainer" onclick="closePreview()" style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; position: relative;">
+                <img id="previewImage" src="" alt="预览" onclick="event.stopPropagation()" style="max-width: 90vw; max-height: 85vh; transition: transform 0.2s ease;">
                 <iframe id="previewPdf" src="" style="display:none; width:90vw; height:85vh;" onclick="event.stopPropagation()"></iframe>
             </div>
-            <div class="preview-toolbar" onclick="event.stopPropagation()">
-                <button onclick="zoomOut()">➖ 缩小</button>
-                <button onclick="resetZoom()">↺ 重置</button>
-                <button onclick="zoomIn()">➕ 放大</button>
+            <div class="preview-toolbar" onclick="event.stopPropagation()" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 8px;">
+                <button onclick="zoomOut()" style="background: rgba(255,255,255,0.1); color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">➖ 缩小</button>
+                <button onclick="resetZoom()" style="background: rgba(255,255,255,0.1); color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">↺ 重置</button>
+                <button onclick="zoomIn()" style="background: rgba(255,255,255,0.1); color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">➕ 放大</button>
             </div>
         </div>
 
         <!-- Person Detail Modal -->
-        <div id="personDetailModal" class="modal fixed inset-0 bg-black/50 items-center justify-center z-50">
-            <div class="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                <div class="p-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
-                    <h3 class="text-xl font-semibold" id="personDetailTitle">成员详情</h3>
+        <div id="personDetailModal" class="modal">
+            <div class="modal-overlay" onclick="closePersonDetail()"></div>
+            <div class="modal-content w-full max-w-4xl mx-4">
+                <div class="modal-header">
+                    <h3 id="personDetailTitle">成员详情</h3>
                     <div class="flex items-center gap-2">
-                        <button onclick="deletePerson(currentPersonData.id); closePersonDetail();" class="px-3 py-1 text-red-600 hover:text-red-800 text-sm">删除</button>
-                        <button onclick="toggleEditMode()" id="editToggleBtn" class="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">编辑</button>
-                        <button onclick="closePersonDetail()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+                        <button onclick="deletePerson(currentPersonData.id); closePersonDetail();" class="text-red-600 hover:text-red-800 text-sm font-medium">删除</button>
+                        <button onclick="toggleEditMode()" id="editToggleBtn" class="btn btn-primary text-sm py-1.5 px-3">编辑</button>
+                        <button class="modal-close" onclick="closePersonDetail()">&times;</button>
                     </div>
                 </div>
-                <div id="personDetailContent" class="p-4"></div>
+                <div id="personDetailContent" class="modal-body"></div>
             </div>
         </div>
     </div>
@@ -725,10 +871,40 @@
         function showPersonModal() {
             document.getElementById('personModal').classList.add('active');
             document.getElementById('personForm').reset();
+            // Reset button groups to default values
+            resetButtonGroup('relationBtnGroup', 'self');
+            resetButtonGroup('genderBtnGroup', '');
         }
 
         function closePersonModal() {
             document.getElementById('personModal').classList.remove('active');
+        }
+
+        // Button group selection functions
+        function selectRelation(el, value) {
+            const buttons = el.parentElement.querySelectorAll('.btn-group-item');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            el.classList.add('active');
+            document.querySelector('input[name="relationship"]').value = value;
+        }
+
+        function selectGender(el, value) {
+            const buttons = el.parentElement.querySelectorAll('.btn-group-item');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            el.classList.add('active');
+            document.querySelector('input[name="gender"]').value = value;
+        }
+
+        function resetButtonGroup(groupId, defaultValue) {
+            const container = document.getElementById(groupId);
+            const buttons = container.querySelectorAll('.btn-group-item');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            // Find and activate the default button
+            buttons.forEach(btn => {
+                if (btn.onclick && btn.onclick.toString().includes(`'${defaultValue}'`)) {
+                    btn.classList.add('active');
+                }
+            });
         }
 
         // ==================== Person Detail Modal ====================
