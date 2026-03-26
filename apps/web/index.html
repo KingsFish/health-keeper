@@ -628,16 +628,41 @@
         <!-- Person Detail Modal -->
         <div id="personDetailModal" class="modal">
             <div class="modal-overlay" onclick="closePersonDetail()"></div>
-            <div class="modal-content w-full max-w-4xl mx-4">
-                <div class="modal-header">
-                    <h3 id="personDetailTitle">成员详情</h3>
-                    <div class="flex items-center gap-2">
-                        <button onclick="deletePerson(currentPersonData.id); closePersonDetail();" class="text-red-600 hover:text-red-800 text-sm font-medium">删除</button>
-                        <button onclick="toggleEditMode()" id="editToggleBtn" class="btn btn-primary text-sm py-1.5 px-3">编辑</button>
-                        <button class="modal-close" onclick="closePersonDetail()">&times;</button>
+            <div class="modal-content w-full max-w-4xl mx-4 p-0 overflow-hidden">
+                <!-- 渐变背景头部 -->
+                <div class="relative bg-gradient-to-br from-blue-500 to-blue-700 px-6 py-8 text-white">
+                    <!-- 操作按钮 -->
+                    <div class="absolute top-4 right-4 flex items-center gap-2">
+                        <button onclick="deletePerson(currentPersonData.id); closePersonDetail();" class="bg-white/20 hover:bg-white/30 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition-colors">
+                            删除
+                        </button>
+                        <button onclick="toggleEditMode()" id="editToggleBtn" class="bg-white hover:bg-gray-100 text-blue-600 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors">
+                            编辑
+                        </button>
+                        <button class="w-8 h-8 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-lg transition-colors" onclick="closePersonDetail()">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
                     </div>
+
+                    <!-- 头像 -->
+                    <div class="flex items-center gap-4">
+                        <div class="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center text-3xl font-bold backdrop-blur-sm border-2 border-white/30">
+                            <span id="personAvatarInitial">?</span>
+                        </div>
+                        <div>
+                            <h2 id="personDetailName" class="text-2xl font-bold"></h2>
+                            <div id="personBasicInfo" class="text-blue-100 text-sm mt-1 flex items-center gap-3"></div>
+                        </div>
+                    </div>
+
+                    <!-- 标签 -->
+                    <div id="personTags" class="flex flex-wrap gap-2 mt-4"></div>
                 </div>
-                <div id="personDetailContent" class="modal-body"></div>
+
+                <!-- 内容区域 -->
+                <div id="personDetailContent" class="p-6 max-h-[60vh] overflow-y-auto"></div>
             </div>
         </div>
     </div>
@@ -919,6 +944,39 @@
             isEditMode = false;
             renderPersonDetail();
             document.getElementById('personDetailModal').classList.add('active');
+
+            // 加载成员就诊记录
+            loadPersonVisits(id);
+        }
+
+        // 加载成员就诊记录（最近5条）
+        async function loadPersonVisits(personId) {
+            try {
+                const visits = await fetchAPI(`/api/visits?person_id=${personId}`);
+                const container = document.getElementById('personVisitsList');
+                if (!container) return;
+
+                if (visits.length === 0) {
+                    container.innerHTML = '<p class="text-sm text-gray-400">暂无就诊记录</p>';
+                    return;
+                }
+
+                // 只显示最近5条
+                const recentVisits = visits.slice(0, 5);
+                container.innerHTML = recentVisits.map(v => `
+                    <div onclick="closePersonDetail(); showVisitDetail('${v.id}')" class="bg-white rounded-lg p-3 cursor-pointer hover:shadow-md transition-shadow border border-gray-100">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="font-medium text-gray-800">${v.hospital || '未知医院'}</div>
+                                <div class="text-sm text-gray-500">${v.department || ''} ${v.diagnosis ? '· ' + escapeHtml(v.diagnosis) : ''}</div>
+                            </div>
+                            <div class="text-xs text-gray-400">${v.date || ''}</div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('Failed to load person visits:', e);
+            }
         }
 
         function closePersonDetail() {
@@ -934,11 +992,38 @@
 
         function renderPersonDetail() {
             const p = currentPersonData;
-            const title = document.getElementById('personDetailTitle');
+            const nameEl = document.getElementById('personDetailName');
+            const avatarEl = document.getElementById('personAvatarInitial');
+            const basicInfoEl = document.getElementById('personBasicInfo');
+            const tagsEl = document.getElementById('personTags');
             const content = document.getElementById('personDetailContent');
             const editBtn = document.getElementById('editToggleBtn');
 
-            title.textContent = p.name;
+            // 设置姓名和头像
+            nameEl.textContent = p.name;
+            avatarEl.textContent = p.name ? p.name.charAt(0).toUpperCase() : '?';
+
+            // 设置基本信息
+            const infoParts = [];
+            infoParts.push(`<span class="bg-white/20 px-2 py-0.5 rounded text-xs">${formatRelationship(p.relationship)}</span>`);
+            if (p.gender) infoParts.push(`<span>${formatGender(p.gender)}</span>`);
+            if (p.birth_date) {
+                const age = calculateAge(p.birth_date);
+                if (age !== null) infoParts.push(`<span>${age}岁</span>`);
+            }
+            basicInfoEl.innerHTML = infoParts.join('<span class="text-white/40">·</span>');
+
+            // 设置标签
+            const tags = [];
+            if (p.blood_type) {
+                tags.push(`<span class="bg-white/20 text-white text-xs px-2.5 py-1 rounded-full">🩸 ${p.blood_type}</span>`);
+            }
+            if (p.body_measurements?.height && p.body_measurements?.weight) {
+                const bmi = (p.body_measurements.weight / Math.pow(p.body_measurements.height / 100, 2)).toFixed(1);
+                tags.push(`<span class="bg-white/20 text-white text-xs px-2.5 py-1 rounded-full">BMI ${bmi}</span>`);
+            }
+            tagsEl.innerHTML = tags.join('');
+
             editBtn.textContent = isEditMode ? '取消' : '编辑';
 
             if (isEditMode) {
@@ -948,36 +1033,33 @@
             }
         }
 
+        // 计算年龄
+        function calculateAge(birthDate) {
+            if (!birthDate) return null;
+            const birth = new Date(birthDate);
+            const today = new Date();
+            let age = today.getFullYear() - birth.getFullYear();
+            const monthDiff = today.getMonth() - birth.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+                age--;
+            }
+            return age >= 0 ? age : null;
+        }
+
         function renderDetailView(p) {
             return `
                 <div class="space-y-6">
-                    <!-- 基础信息卡片 -->
-                    <div class="bg-gray-50 rounded-lg p-4">
-                        <h4 class="font-medium text-gray-900 mb-3 flex items-center gap-2">
-                            <span class="text-lg">👤</span> 基础信息
-                        </h4>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            <div><span class="text-gray-500">关系：</span>${formatRelationship(p.relationship)}</div>
-                            <div><span class="text-gray-500">性别：</span>${formatGender(p.gender)}</div>
-                            <div><span class="text-gray-500">生日：</span>${p.birth_date || '-'}</div>
-                            <div><span class="text-gray-500">血型：</span>${p.blood_type || '-'}</div>
-                        </div>
-                        ${p.allergies && p.allergies.length > 0 ? `
-                            <div class="mt-3 pt-3 border-t border-gray-200">
-                                <span class="text-gray-500 text-sm">过敏史：</span>
-                                <div class="flex flex-wrap gap-2 mt-1">
-                                    ${p.allergies.map(a => `<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">${escapeHtml(a)}</span>`).join('')}
-                                </div>
-                            </div>
-                        ` : ''}
-                        ${p.notes ? `<div class="mt-3 pt-3 border-t border-gray-200 text-sm"><span class="text-gray-500">备注：</span>${escapeHtml(p.notes)}</div>` : ''}
+                    <!-- 健康卡片区域 -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        ${renderChronicDiseasesCard(p.chronic_diseases)}
+                        ${renderAllergiesCard(p.allergies)}
+                        ${renderMedicationsCard(p.current_medications)}
                     </div>
 
                     <!-- 身体测量 -->
                     ${renderBodyMeasurements(p.body_measurements)}
 
                     <!-- 既往病史 -->
-                    ${renderChronicDiseases(p.chronic_diseases)}
                     ${renderPastSurgeries(p.past_surgeries)}
                     ${renderHospitalizations(p.hospitalizations)}
                     ${renderMajorIllnesses(p.major_illnesses)}
@@ -985,14 +1067,106 @@
                     <!-- 家族病史 -->
                     ${renderFamilyHistory(p.family_history)}
 
-                    <!-- 长期用药 -->
-                    ${renderCurrentMedications(p.current_medications)}
-
                     <!-- 生活习惯 -->
                     ${renderLifestyle(p.lifestyle)}
 
+                    <!-- 就诊历史 -->
+                    ${renderPersonVisitsSection(p.id)}
+
                     <!-- 空状态提示 -->
-                    ${isEmpty(p) ? '<div class="text-center text-gray-400 py-8">暂无健康信息，点击"编辑"添加</div>' : ''}
+                    ${isEmpty(p) ? '<div class="text-center text-gray-400 py-8 bg-gray-50 rounded-xl">暂无健康信息，点击"编辑"添加</div>' : ''}
+                </div>
+            `;
+        }
+
+        // 慢性病卡片（黄色背景）
+        function renderChronicDiseasesCard(diseases) {
+            const hasData = diseases && diseases.length > 0;
+            return `
+                <div class="bg-amber-50 rounded-xl p-4 border border-amber-100">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                            <span class="text-amber-600 text-lg">🏥</span>
+                        </div>
+                        <h4 class="font-medium text-amber-900">慢性病史</h4>
+                    </div>
+                    ${hasData ? `
+                        <div class="space-y-2">
+                            ${diseases.map(d => `
+                                <div class="text-sm">
+                                    <span class="font-medium text-gray-800">${escapeHtml(d.name)}</span>
+                                    ${d.status ? `<span class="ml-2 text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded">${formatDiseaseStatus(d.status)}</span>` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : '<p class="text-sm text-amber-600/60">暂无记录</p>'}
+                </div>
+            `;
+        }
+
+        // 过敏卡片（红色背景）
+        function renderAllergiesCard(allergies) {
+            const hasData = allergies && allergies.length > 0;
+            return `
+                <div class="bg-red-50 rounded-xl p-4 border border-red-100">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+                            <span class="text-red-600 text-lg">⚠️</span>
+                        </div>
+                        <h4 class="font-medium text-red-900">过敏史</h4>
+                    </div>
+                    ${hasData ? `
+                        <div class="flex flex-wrap gap-2">
+                            ${allergies.map(a => `<span class="bg-red-200 text-red-800 text-xs px-2.5 py-1 rounded-full">${escapeHtml(a)}</span>`).join('')}
+                        </div>
+                    ` : '<p class="text-sm text-red-600/60">暂无记录</p>'}
+                </div>
+            `;
+        }
+
+        // 长期用药卡片（蓝色背景）
+        function renderMedicationsCard(medications) {
+            const hasData = medications && medications.length > 0;
+            return `
+                <div class="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <span class="text-blue-600 text-lg">💊</span>
+                        </div>
+                        <h4 class="font-medium text-blue-900">长期用药</h4>
+                    </div>
+                    ${hasData ? `
+                        <div class="space-y-2">
+                            ${medications.map(m => `
+                                <div class="text-sm">
+                                    <span class="font-medium text-gray-800">${escapeHtml(m.name)}</span>
+                                    ${m.dosage ? `<span class="text-gray-500 ml-2">${escapeHtml(m.dosage)}</span>` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : '<p class="text-sm text-blue-600/60">暂无记录</p>'}
+                </div>
+            `;
+        }
+
+        // 就诊历史区域
+        function renderPersonVisitsSection(personId) {
+            return `
+                <div class="bg-gray-50 rounded-xl p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center">
+                                <span class="text-gray-600 text-lg">📋</span>
+                            </div>
+                            <h4 class="font-medium text-gray-900">就诊历史</h4>
+                        </div>
+                        <button onclick="closePersonDetail(); loadVisits('${personId}');" class="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                            查看全部 →
+                        </button>
+                    </div>
+                    <div id="personVisitsList" class="space-y-3">
+                        <p class="text-sm text-gray-400">加载中...</p>
+                    </div>
                 </div>
             `;
         }
