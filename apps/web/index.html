@@ -1044,7 +1044,7 @@
                                 <div class="font-medium text-gray-800">${v.hospital || '未知医院'}</div>
                                 <div class="text-sm text-gray-500">${v.department || ''} ${v.diagnosis ? '· ' + escapeHtml(v.diagnosis) : ''}</div>
                             </div>
-                            <div class="text-xs text-gray-400">${v.date || ''}</div>
+                            <div class="text-xs text-gray-400">${v.visit_date || ''}</div>
                         </div>
                     </div>
                 `).join('');
@@ -1819,8 +1819,8 @@
 
             // 科室和医生
             const metaParts = [];
-            if (visit.department) metaParts.push(`<span class="bg-white/20 px-2 py-0.5 rounded">${visit.department}</span>`);
-            if (visit.doctor) metaParts.push(`<span>医生: ${visit.doctor}</span>`);
+            if (visit.department) metaParts.push(`<span class="bg-white/20 px-2 py-0.5 rounded">${escapeHtml(visit.department)}</span>`);
+            if (visit.doctor) metaParts.push(`<span>医生: ${escapeHtml(visit.doctor)}</span>`);
             metaEl.innerHTML = metaParts.join('') || '<span class="text-white/60">暂无科室信息</span>';
 
             // 患者和日期
@@ -1917,10 +1917,11 @@
                 visit.attachments.forEach(function(a) {
                     const previewable = isPreviewable(a.mime_type);
                     const isImage = a.mime_type && a.mime_type.startsWith('image/');
+                    const safeFilename = escapeHtml(a.original_filename || '附件');
                     html += `
-                        <div class="bg-white rounded-lg p-3 border border-gray-200 cursor-pointer hover:shadow-md transition-shadow" onclick="${previewable ? "openPreview('" + a.file_path + "', '" + (a.original_filename || '附件') + "', '" + a.mime_type + "')" : ''}">
+                        <div class="bg-white rounded-lg p-3 border border-gray-200 cursor-pointer hover:shadow-md transition-shadow" onclick="${previewable ? "openPreview('" + a.file_path + "', '" + safeFilename + "', '" + a.mime_type + "')" : ''}">
                             ${isImage ? `<div class="h-20 bg-gray-100 rounded mb-2 overflow-hidden"><img src="/data/${a.file_path}" class="w-full h-full object-cover"></div>` : `<div class="h-20 bg-gray-100 rounded mb-2 flex items-center justify-center text-3xl">${getFileIcon(a.mime_type)}</div>`}
-                            <div class="text-sm font-medium text-gray-800 truncate">${a.original_filename || '附件'}</div>
+                            <div class="text-sm font-medium text-gray-800 truncate">${safeFilename}</div>
                             <div class="text-xs text-gray-400">${formatBytes(a.file_size)}</div>
                             ${a.has_extraction ? '<div class="mt-1"><span class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">已提取</span></div>' : ''}
                         </div>
