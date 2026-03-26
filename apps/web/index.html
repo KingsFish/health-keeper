@@ -5,340 +5,738 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HealthKeeper - 医疗档案管理</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Noto Sans SC -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        /* CSS 变量定义主题色 */
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #1d4ed8;
+            --primary-light: #93c5fd;
+            --bg-main: #f8fafc;
+            --card: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+
+        /* 基础样式 */
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
         .loading { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .modal { display: none; }
+
+        /* Modal 基础样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            align-items: center;
+            justify-content: center;
+        }
         .modal.active { display: flex; }
 
-        /* 预览模态框样式 */
-        #previewModal { background: rgba(0,0,0,0.9); }
-        #previewModal .preview-container {
+        /* Modal 遮罩层 */
+        .modal-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+
+        /* Modal 内容卡片 */
+        .modal-content {
+            position: relative;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: modalSlideIn 0.2s ease-out;
+        }
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Modal 标题栏 */
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .modal-header h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .modal-close {
+            width: 32px;
+            height: 32px;
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 100%;
-            height: 100%;
-            position: relative;
-        }
-        #previewModal img, #previewModal iframe {
-            max-width: 90vw;
-            max-height: 85vh;
-            transition: transform 0.2s ease;
-        }
-        #previewModal .preview-toolbar {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 8px;
-            background: rgba(0,0,0,0.7);
-            padding: 8px 16px;
+            background: #f1f5f9;
+            border: none;
             border-radius: 8px;
-        }
-        #previewModal .preview-toolbar button {
-            background: rgba(255,255,255,0.1);
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 4px;
+            color: #64748b;
+            font-size: 20px;
             cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .modal-close:hover {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+
+        /* Modal 表单区 */
+        .modal-body {
+            padding: 20px;
+        }
+
+        /* Modal 底部操作栏 */
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 16px 20px;
+            border-top: 1px solid #e2e8f0;
+            background: #f8fafc;
+            border-radius: 0 0 16px 16px;
+        }
+
+        /* Modal 底部上滑面板 */
+        .modal-bottom-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-radius: 20px 20px 0 0;
+            padding: 24px 20px;
+            box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.1);
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            z-index: 100;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-bottom-sheet.active {
+            transform: translateY(0);
+        }
+
+        /* 选择按钮组 */
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .btn-group-item {
+            padding: 10px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: white;
+            color: #64748b;
             font-size: 14px;
-        }
-        #previewModal .preview-toolbar button:hover {
-            background: rgba(255,255,255,0.2);
-        }
-        #previewModal .preview-filename {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: white;
-            background: rgba(0,0,0,0.5);
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        #previewModal .close-btn {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            color: white;
-            font-size: 32px;
             cursor: pointer;
-            background: none;
+            transition: all 0.15s ease;
+        }
+        .btn-group-item:hover {
+            border-color: #3b82f6;
+            color: #3b82f6;
+        }
+        .btn-group-item.active {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border-color: #3b82f6;
+            color: white;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+        }
+
+        /* 表单标签 */
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        /* 表单输入框 */
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            color: #1e293b;
+            transition: all 0.15s ease;
+            outline: none;
+        }
+        .form-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .form-input::placeholder {
+            color: #94a3b8;
+        }
+
+        /* 表单组 */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
             border: none;
         }
-        #previewModal .close-btn:hover { color: #ccc; }
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #64748b;
+        }
+        .btn-secondary:hover {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+        }
+        .btn-primary:hover {
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+            transform: translateY(-1px);
+        }
+
+        /* Timeline styles */
+        .timeline-container {
+            position: relative;
+            padding-left: 40px;
+        }
+        .timeline-line {
+            position: absolute;
+            left: 14px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, #3b82f6, #93c5fd, #e2e8f0);
+        }
+        .timeline-item {
+            position: relative;
+            padding-bottom: 16px;
+        }
+        .timeline-item:last-child {
+            padding-bottom: 0;
+        }
+        .timeline-dot {
+            position: absolute;
+            left: -32px;
+            top: 8px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            border: 2px solid #fff;
+            box-shadow: 0 0 0 2px #e2e8f0;
+        }
+        .timeline-dot.today {
+            background: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+            animation: pulse-dot 2s infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3); }
+            50% { box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.2); }
+        }
+        .timeline-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .timeline-card:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+            transform: translateX(4px);
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
     <div id="app" class="max-w-7xl mx-auto px-4 py-8">
-        <!-- Header -->
-        <header class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900">🏥 HealthKeeper</h1>
-            <p class="text-gray-600 mt-1">医疗档案管理系统</p>
-        </header>
-
-        <!-- Search Bar -->
-        <div class="bg-white rounded-lg shadow p-4 mb-6">
-            <div class="flex gap-4 mb-4">
-                <input type="text" id="searchInput" placeholder="搜索病历、诊断、药物..."
-                    class="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <button onclick="search()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
-                    搜索
-                </button>
-                <button onclick="toggleFilters()" class="border px-4 py-2 rounded-lg hover:bg-gray-50">
-                    <span id="filterToggleText">高级筛选</span>
+        <!-- Greeting Section -->
+        <div id="greetingSection" class="rounded-2xl p-6 mb-6 text-white" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p id="greetingTime" class="text-lg opacity-90">早上好</p>
+                    <h1 id="greetingName" class="text-2xl font-bold mt-1">用户</h1>
+                    <p id="greetingTip" class="text-sm opacity-80 mt-2">今天也要注意身体健康哦</p>
+                </div>
+                <button id="notificationBtn" class="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors" title="通知">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                    </svg>
                 </button>
             </div>
-            <!-- Filters -->
-            <div id="filtersPanel" class="hidden grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
-                <div>
-                    <label class="block text-sm text-gray-600 mb-1">成员</label>
-                    <select id="filterPerson" class="w-full border rounded-lg px-3 py-2">
-                        <option value="">全部成员</option>
-                    </select>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="grid grid-cols-3 gap-4 mb-6">
+            <!-- 快速录入 - 突出显示 -->
+            <button onclick="showVisitModal()" class="bg-white rounded-xl p-4 shadow-sm border-2 border-blue-500 hover:shadow-md transition-all group">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white group-hover:scale-110 transition-transform">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                    </div>
+                    <div class="text-left">
+                        <div class="font-semibold text-gray-900">快速录入</div>
+                        <div class="text-xs text-gray-500">上传病历自动识别</div>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-sm text-gray-600 mb-1">医院</label>
-                    <input type="text" id="filterHospital" placeholder="输入医院名称" class="w-full border rounded-lg px-3 py-2">
+            </button>
+
+            <!-- 搜索记录 -->
+            <button onclick="focusSearch()" class="bg-white rounded-xl p-4 shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all group">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="text-left">
+                        <div class="font-semibold text-gray-900">搜索记录</div>
+                        <div class="text-xs text-gray-500">查找历史病历</div>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-sm text-gray-600 mb-1">医生</label>
-                    <select id="filterDoctor" class="w-full border rounded-lg px-3 py-2">
-                        <option value="">全部医生</option>
-                    </select>
+            </button>
+
+            <!-- 家庭成员 -->
+            <button onclick="document.getElementById('personsList').scrollIntoView({behavior: 'smooth'})" class="bg-white rounded-xl p-4 shadow-sm border border-gray-200 hover:shadow-md hover:border-blue-300 transition-all group">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="text-left">
+                        <div class="font-semibold text-gray-900">家庭成员</div>
+                        <div class="text-xs text-gray-500"><span id="memberCount">0</span> 位成员</div>
+                    </div>
+                </div>
+            </button>
+        </div>
+
+        <!-- Family Members Overview -->
+        <div class="bg-white rounded-xl shadow-sm mb-6">
+            <div class="p-4 flex justify-between items-center border-b border-gray-100">
+                <h2 class="text-lg font-semibold text-gray-900">家庭成员</h2>
+                <button onclick="showPersonModal()" class="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    添加成员
+                </button>
+            </div>
+            <div id="personsList" class="p-4 overflow-x-auto">
+                <!-- 成员卡片将通过 renderPersons() 渲染 -->
+            </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
+            <div class="flex gap-3 items-center">
+                <!-- 搜索图标 -->
+                <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+                <!-- 搜索输入框 -->
+                <input type="text" id="searchInput" placeholder="搜索病历、诊断、药物..."
+                    class="flex-1 bg-gray-50 border-0 rounded-xl px-4 py-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
+                <!-- 搜索按钮 -->
+                <button onclick="search()" class="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-5 py-3 rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all font-medium shadow-sm flex-shrink-0">
+                    搜索
+                </button>
+                <!-- 筛选按钮 -->
+                <button onclick="toggleFilters()" class="flex items-center gap-2 px-4 py-3 rounded-xl border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all flex-shrink-0">
+                    <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
+                    </svg>
+                    <span id="filterToggleText" class="text-gray-600 text-sm font-medium">筛选</span>
+                </button>
+            </div>
+            <!-- Filters Panel -->
+            <div id="filtersPanel" class="hidden mt-4 pt-4 border-t border-gray-100">
+                <div class="flex gap-3 flex-wrap">
+                    <!-- 成员筛选 -->
+                    <div class="flex-1 min-w-[150px]">
+                        <label class="block text-xs text-gray-500 mb-1.5 font-medium">成员</label>
+                        <select id="filterPerson" class="w-full bg-gray-50 border-0 rounded-xl px-4 py-2.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">全部成员</option>
+                        </select>
+                    </div>
+                    <!-- 医院筛选 -->
+                    <div class="flex-1 min-w-[150px]">
+                        <label class="block text-xs text-gray-500 mb-1.5 font-medium">医院</label>
+                        <input type="text" id="filterHospital" placeholder="输入医院名称" class="w-full bg-gray-50 border-0 rounded-xl px-4 py-2.5 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <!-- 医生筛选 -->
+                    <div class="flex-1 min-w-[150px]">
+                        <label class="block text-xs text-gray-500 mb-1.5 font-medium">医生</label>
+                        <select id="filterDoctor" class="w-full bg-gray-50 border-0 rounded-xl px-4 py-2.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">全部医生</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Main Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Persons Panel -->
-            <div class="bg-white rounded-lg shadow">
-                <div class="p-4 border-b flex justify-between items-center">
-                    <h2 class="text-lg font-semibold">家庭成员</h2>
-                    <button onclick="showPersonModal()" class="text-blue-600 hover:text-blue-800">+ 添加</button>
-                </div>
-                <div id="personsList" class="divide-y max-h-96 overflow-y-auto"></div>
-            </div>
-
+        <div class="grid grid-cols-1 gap-6">
             <!-- Visits Panel -->
-            <div class="lg:col-span-2 bg-white rounded-lg shadow">
-                <div class="p-4 border-b flex justify-between items-center">
-                    <h2 class="text-lg font-semibold">就诊记录</h2>
-                    <button onclick="showVisitModal()" class="text-blue-600 hover:text-blue-800 font-medium">+ 添加记录</button>
+            <div class="bg-white rounded-xl shadow-sm">
+                <div class="p-4 border-b border-gray-100">
+                    <div class="flex justify-between items-center mb-3">
+                        <h2 class="text-lg font-semibold text-gray-900">最近就诊</h2>
+                        <button onclick="showVisitModal()" class="text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                            </svg>
+                            添加记录
+                        </button>
+                    </div>
+                    <!-- Member filter tabs -->
+                    <div id="visitFilterTabs" class="flex gap-2 flex-wrap">
+                        <!-- Tabs will be rendered by renderVisitFilterTabs() -->
+                    </div>
                 </div>
-                <div id="visitsList" class="divide-y max-h-[600px] overflow-y-auto"></div>
+                <div id="visitsList" class="p-4 max-h-[600px] overflow-y-auto"></div>
             </div>
         </div>
 
         <!-- Extraction Result Modal -->
-        <div id="extractionModal" class="modal fixed inset-0 bg-black/50 items-center justify-center z-50">
-            <div class="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                <div class="p-4 border-b flex justify-between items-center sticky top-0 bg-white">
-                    <h3 class="text-lg font-semibold" id="extractionModalTitle">AI 提取结果</h3>
-                    <button onclick="closeExtractionModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        <div id="extractionModal" class="modal">
+            <div class="modal-overlay" onclick="closeExtractionModal()"></div>
+            <div class="modal-content w-full max-w-2xl mx-4">
+                <div class="modal-header">
+                    <h3 id="extractionModalTitle">AI 提取结果</h3>
+                    <button class="modal-close" onclick="closeExtractionModal()">&times;</button>
                 </div>
-                <div id="extractionModalContent" class="p-4"></div>
-                <div class="p-4 border-t flex justify-end gap-2 bg-gray-50">
-                    <button onclick="closeExtractionModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-100">关闭</button>
-                    <button onclick="applyExtractionToVisit()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">应用到记录</button>
+                <div id="extractionModalContent" class="modal-body"></div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeExtractionModal()">关闭</button>
+                    <button class="btn btn-primary" onclick="applyExtractionToVisit()">应用到记录</button>
                 </div>
             </div>
         </div>
 
         <!-- Visit Detail Modal -->
-        <div id="visitDetailModal" class="modal fixed inset-0 bg-black/50 items-center justify-center z-50">
-            <div class="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                <div class="p-4 border-b flex justify-between items-center sticky top-0 bg-white">
-                    <h3 class="text-lg font-semibold" id="visitDetailTitle">就诊详情</h3>
-                    <div class="flex items-center gap-2">
-                        <button onclick="toggleVisitEditMode()" id="visitEditBtn" class="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">编辑</button>
-                        <button onclick="closeVisitDetail()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        <div id="visitDetailModal" class="modal">
+            <div class="modal-overlay" onclick="closeVisitDetail()"></div>
+            <div class="modal-content w-full max-w-4xl mx-4 p-0 overflow-hidden">
+                <!-- 头部信息区 -->
+                <div class="bg-gradient-to-br from-blue-500 to-blue-700 px-6 py-6 text-white">
+                    <!-- 操作按钮 -->
+                    <div class="absolute top-4 right-4 flex items-center gap-2">
+                        <button onclick="toggleVisitEditMode()" id="visitEditBtn" class="bg-white hover:bg-gray-100 text-blue-600 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors">
+                            编辑
+                        </button>
+                        <button class="w-8 h-8 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-lg transition-colors" onclick="closeVisitDetail()">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
                     </div>
+
+                    <!-- 医院名称 -->
+                    <h2 id="visitDetailHospital" class="text-2xl font-bold mb-2"></h2>
+
+                    <!-- 科室医生 -->
+                    <div id="visitDetailMeta" class="text-blue-100 text-sm flex items-center gap-4"></div>
+
+                    <!-- 患者和日期 -->
+                    <div id="visitDetailInfo" class="flex items-center gap-4 mt-3 text-sm"></div>
                 </div>
-                <div id="visitDetailContent" class="p-4"></div>
+
+                <!-- 内容区 -->
+                <div id="visitDetailContent" class="p-6 max-h-[60vh] overflow-y-auto"></div>
             </div>
         </div>
 
         <!-- Add Person Modal -->
-        <div id="personModal" class="modal fixed inset-0 bg-black/50 items-center justify-center z-50">
-            <div class="bg-white rounded-lg max-w-md w-full mx-4">
-                <div class="p-4 border-b">
-                    <h3 class="text-lg font-semibold">添加成员</h3>
+        <div id="personModal" class="modal">
+            <div class="modal-overlay" onclick="closePersonModal()"></div>
+            <div class="modal-content w-full max-w-md mx-4">
+                <div class="modal-header">
+                    <h3>添加成员</h3>
+                    <button class="modal-close" onclick="closePersonModal()">&times;</button>
                 </div>
-                <form id="personForm" class="p-4 space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">姓名 *</label>
-                        <input type="text" name="name" required class="w-full border rounded-lg px-3 py-2">
+                <form id="personForm" class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">姓名 *</label>
+                        <input type="text" name="name" required class="form-input" placeholder="请输入姓名">
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">关系</label>
-                        <select name="relationship" class="w-full border rounded-lg px-3 py-2">
-                            <option value="self">本人</option>
-                            <option value="spouse">配偶</option>
-                            <option value="child">子女</option>
-                            <option value="parent">父母</option>
-                            <option value="sibling">兄弟姐妹</option>
-                            <option value="other">其他</option>
-                        </select>
+                    <div class="form-group">
+                        <label class="form-label">关系</label>
+                        <div class="btn-group" id="relationBtnGroup">
+                            <button type="button" class="btn-group-item active" onclick="selectRelation(this, 'self')">本人</button>
+                            <button type="button" class="btn-group-item" onclick="selectRelation(this, 'spouse')">配偶</button>
+                            <button type="button" class="btn-group-item" onclick="selectRelation(this, 'child')">子女</button>
+                            <button type="button" class="btn-group-item" onclick="selectRelation(this, 'parent')">父母</button>
+                            <button type="button" class="btn-group-item" onclick="selectRelation(this, 'sibling')">兄弟姐妹</button>
+                            <button type="button" class="btn-group-item" onclick="selectRelation(this, 'other')">其他</button>
+                        </div>
+                        <input type="hidden" name="relationship" value="self">
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">出生日期</label>
-                        <input type="date" name="birth_date" class="w-full border rounded-lg px-3 py-2">
+                    <div class="form-group">
+                        <label class="form-label">出生日期</label>
+                        <input type="date" name="birth_date" class="form-input">
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">性别</label>
-                        <select name="gender" class="w-full border rounded-lg px-3 py-2">
-                            <option value="">未知</option>
-                            <option value="male">男</option>
-                            <option value="female">女</option>
-                        </select>
-                    </div>
-                    <div class="flex justify-end gap-2">
-                        <button type="button" onclick="closePersonModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">取消</button>
-                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">保存</button>
+                    <div class="form-group">
+                        <label class="form-label">性别</label>
+                        <div class="btn-group" id="genderBtnGroup">
+                            <button type="button" class="btn-group-item" onclick="selectGender(this, 'male')">男</button>
+                            <button type="button" class="btn-group-item" onclick="selectGender(this, 'female')">女</button>
+                            <button type="button" class="btn-group-item active" onclick="selectGender(this, '')">未知</button>
+                        </div>
+                        <input type="hidden" name="gender" value="">
                     </div>
                 </form>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closePersonModal()">取消</button>
+                    <button type="submit" form="personForm" class="btn btn-primary">保存</button>
+                </div>
             </div>
         </div>
 
         <!-- Add Visit Modal -->
-        <div id="visitModal" class="modal fixed inset-0 bg-black/50 items-center justify-center z-50">
-            <div class="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                <div class="p-4 border-b">
-                    <h3 class="text-lg font-semibold">添加就诊记录</h3>
+        <div id="visitModal" class="modal">
+            <div class="modal-overlay" onclick="closeVisitModal()"></div>
+            <div class="modal-content w-full max-w-2xl mx-4 p-0 overflow-hidden">
+                <!-- 标题栏 -->
+                <div class="modal-header border-b border-gray-100">
+                    <h3 class="text-lg font-semibold text-gray-800">添加就诊记录</h3>
+                    <button class="modal-close" onclick="closeVisitModal()">&times;</button>
                 </div>
-                <form id="visitForm" class="p-4 space-y-4">
-                    <!-- 快速录入区域 -->
-                    <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <div class="flex items-center justify-between mb-2">
-                            <h4 class="font-medium text-green-800">📷 快速录入</h4>
-                            <span class="text-sm text-green-600">上传病历自动识别</span>
+
+                <form id="visitForm">
+                    <!-- 上传区域 -->
+                    <div class="p-6 pb-4">
+                        <div id="uploadArea" class="relative bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-dashed border-green-300 rounded-2xl p-8 text-center cursor-pointer hover:border-green-400 hover:bg-green-50 transition-all">
+                            <input type="file" id="quickImportFiles" accept="image/*,.pdf" multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                            <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                </svg>
+                            </div>
+                            <p class="text-green-800 font-medium mb-1">点击或拖拽上传病历</p>
+                            <p class="text-green-600 text-sm">支持图片和 PDF，AI 自动识别内容</p>
                         </div>
-                        <div class="flex gap-2 items-start">
-                            <input type="file" id="quickImportFiles" accept="image/*,.pdf" multiple class="flex-1 border rounded-lg px-3 py-2 text-sm">
-                            <button type="button" onclick="quickImportFromForm()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm whitespace-nowrap">识别</button>
-                        </div>
-                        <div class="flex items-center gap-2 mt-2">
-                            <input type="checkbox" id="archiveOnly" class="rounded border-gray-300">
+
+                        <!-- 归档选项 -->
+                        <div class="flex items-center gap-2 mt-3 px-1">
+                            <input type="checkbox" id="archiveOnly" class="w-4 h-4 text-green-600 rounded border-gray-300 focus:ring-green-500">
                             <label for="archiveOnly" class="text-sm text-gray-600">仅归档（跳过识别，创建"待整理"记录）</label>
                         </div>
-                        <div id="quickImportProgress" class="hidden mt-3">
-                            <div class="w-full bg-gray-200 rounded-full h-2">
-                                <div id="progressBarFill" class="bg-green-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-                            </div>
-                            <div id="progressMessage" class="text-sm text-gray-600 mt-1"></div>
-                        </div>
-                        <div id="uploadedFiles" class="mt-2 text-sm text-gray-500"></div>
-                    </div>
 
-                    <hr class="my-2">
+                        <!-- 进度条区域 -->
+                        <div id="quickImportProgress" class="hidden mt-4">
+                            <div class="flex items-center gap-3 mb-2">
+                                <div class="w-6 h-6 border-2 border-green-600 border-t-transparent rounded-full loading"></div>
+                                <span id="progressMessage" class="text-sm text-gray-700 font-medium"></span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div id="progressBarFill" class="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- 已上传文件 -->
+                        <div id="uploadedFiles" class="mt-3 text-sm text-gray-500"></div>
+                    </div>
 
                     <!-- 表单字段 -->
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">患者 *</label>
-                            <select name="person_id" required id="visitPersonSelect" class="w-full border rounded-lg px-3 py-2"></select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">就诊日期 *</label>
-                            <input type="date" name="visit_date" required class="w-full border rounded-lg px-3 py-2">
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">医院</label>
-                            <input type="text" name="hospital" class="w-full border rounded-lg px-3 py-2">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">科室</label>
-                            <input type="text" name="department" class="w-full border rounded-lg px-3 py-2">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">医生</label>
-                        <input type="text" name="doctor" class="w-full border rounded-lg px-3 py-2">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">主诉</label>
-                        <textarea name="chief_complaint" rows="2" class="w-full border rounded-lg px-3 py-2"></textarea>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">诊断</label>
-                        <textarea name="diagnosis" rows="2" class="w-full border rounded-lg px-3 py-2"></textarea>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">摘要</label>
-                        <textarea name="summary" rows="2" class="w-full border rounded-lg px-3 py-2" placeholder="病历摘要"></textarea>
-                    </div>
+                    <div class="px-6 pb-6 space-y-4">
+                        <div class="border-t border-gray-100 pt-4">
+                            <!-- 患者/日期 双列 -->
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="form-group">
+                                    <label class="form-label">患者 *</label>
+                                    <select name="person_id" required id="visitPersonSelect" class="form-input"></select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">就诊日期 *</label>
+                                    <input type="date" name="visit_date" required class="form-input">
+                                </div>
+                            </div>
 
-                    <!-- 隐藏字段：保存已上传的附件ID -->
-                    <input type="hidden" id="uploadedAttachmentIds" value="">
+                            <!-- 医院/科室 双列 -->
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="form-group">
+                                    <label class="form-label">医院</label>
+                                    <input type="text" name="hospital" class="form-input" placeholder="如：北京协和医院">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">科室</label>
+                                    <input type="text" name="department" class="form-input" placeholder="如：内科">
+                                </div>
+                            </div>
 
-                    <div class="flex justify-end gap-2 pt-2">
-                        <button type="button" onclick="closeVisitModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">取消</button>
-                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">保存</button>
+                            <!-- 医生 -->
+                            <div class="form-group">
+                                <label class="form-label">医生</label>
+                                <input type="text" name="doctor" class="form-input" placeholder="主治医生姓名">
+                            </div>
+
+                            <!-- 主诉 -->
+                            <div class="form-group">
+                                <label class="form-label">主诉</label>
+                                <textarea name="chief_complaint" rows="2" class="form-input" placeholder="患者主要症状描述"></textarea>
+                            </div>
+
+                            <!-- 诊断 -->
+                            <div class="form-group">
+                                <label class="form-label">诊断</label>
+                                <textarea name="diagnosis" rows="2" class="form-input" placeholder="医生诊断结果"></textarea>
+                            </div>
+
+                            <!-- 摘要 -->
+                            <div class="form-group">
+                                <label class="form-label">摘要</label>
+                                <textarea name="summary" rows="2" class="form-input" placeholder="病历摘要"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- 隐藏字段 -->
+                        <input type="hidden" id="uploadedAttachmentIds" value="">
                     </div>
                 </form>
+
+                <!-- 底部操作栏 -->
+                <div class="modal-footer bg-gray-50 border-t border-gray-100">
+                    <button type="button" class="px-5 py-2.5 text-gray-600 hover:text-gray-800 font-medium transition-colors" onclick="closeVisitModal()">取消</button>
+                    <button type="submit" form="visitForm" class="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-sm">保存</button>
+                </div>
             </div>
         </div>
 
         <!-- Upload Modal -->
-        <div id="uploadModal" class="modal fixed inset-0 bg-black/50 items-center justify-center z-50">
-            <div class="bg-white rounded-lg max-w-md w-full mx-4">
-                <div class="p-4 border-b">
-                    <h3 class="text-lg font-semibold">上传文件</h3>
+        <div id="uploadModal" class="modal">
+            <div class="modal-overlay" onclick="closeUploadModal()"></div>
+            <div class="modal-content w-full max-w-md mx-4">
+                <div class="modal-header">
+                    <h3>上传文件</h3>
+                    <button class="modal-close" onclick="closeUploadModal()">&times;</button>
                 </div>
-                <form id="uploadForm" class="p-4 space-y-4">
+                <form id="uploadForm" class="modal-body">
                     <input type="hidden" name="visit_id" id="uploadVisitId">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">选择文件</label>
-                        <input type="file" name="file" accept="image/*,.pdf" required class="w-full border rounded-lg px-3 py-2">
+                    <div class="form-group">
+                        <label class="form-label">选择文件</label>
+                        <input type="file" name="file" accept="image/*,.pdf" required class="form-input">
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 mb-4">
                         <input type="checkbox" id="uploadArchiveOnly" class="rounded border-gray-300">
                         <label for="uploadArchiveOnly" class="text-sm text-gray-600">仅归档（跳过识别）</label>
                     </div>
-                    <div class="text-sm text-gray-500">支持图片和 PDF 文件</div>
-                    <div class="flex justify-end gap-2">
-                        <button type="button" onclick="closeUploadModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">取消</button>
-                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">上传</button>
-                    </div>
+                    <p class="text-sm text-gray-500">支持图片和 PDF 文件</p>
                 </form>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeUploadModal()">取消</button>
+                    <button type="submit" form="uploadForm" class="btn btn-primary">上传</button>
+                </div>
             </div>
         </div>
 
         <!-- Preview Modal -->
-        <div id="previewModal" class="modal fixed inset-0 items-center justify-center z-50">
-            <button class="close-btn" onclick="closePreview()">&times;</button>
-            <div class="preview-filename" id="previewFilename"></div>
-            <div class="preview-container" id="previewContainer" onclick="closePreview()">
-                <img id="previewImage" src="" alt="预览" onclick="event.stopPropagation()">
+        <div id="previewModal" class="modal" style="background: rgba(0,0,0,0.9);">
+            <button class="close-btn" onclick="closePreview()" style="position: absolute; top: 20px; right: 20px; color: white; font-size: 32px; cursor: pointer; background: none; border: none; z-index: 10;">&times;</button>
+            <div class="preview-filename" id="previewFilename" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); color: white; background: rgba(0,0,0,0.5); padding: 6px 12px; border-radius: 4px; font-size: 14px;"></div>
+            <div class="preview-container" id="previewContainer" onclick="closePreview()" style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; position: relative;">
+                <img id="previewImage" src="" alt="预览" onclick="event.stopPropagation()" style="max-width: 90vw; max-height: 85vh; transition: transform 0.2s ease;">
                 <iframe id="previewPdf" src="" style="display:none; width:90vw; height:85vh;" onclick="event.stopPropagation()"></iframe>
             </div>
-            <div class="preview-toolbar" onclick="event.stopPropagation()">
-                <button onclick="zoomOut()">➖ 缩小</button>
-                <button onclick="resetZoom()">↺ 重置</button>
-                <button onclick="zoomIn()">➕ 放大</button>
+            <div class="preview-toolbar" onclick="event.stopPropagation()" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; background: rgba(0,0,0,0.7); padding: 8px 16px; border-radius: 8px;">
+                <button onclick="zoomOut()" style="background: rgba(255,255,255,0.1); color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">➖ 缩小</button>
+                <button onclick="resetZoom()" style="background: rgba(255,255,255,0.1); color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">↺ 重置</button>
+                <button onclick="zoomIn()" style="background: rgba(255,255,255,0.1); color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">➕ 放大</button>
             </div>
         </div>
 
         <!-- Person Detail Modal -->
-        <div id="personDetailModal" class="modal fixed inset-0 bg-black/50 items-center justify-center z-50">
-            <div class="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                <div class="p-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
-                    <h3 class="text-xl font-semibold" id="personDetailTitle">成员详情</h3>
-                    <div class="flex items-center gap-2">
-                        <button onclick="deletePerson(currentPersonData.id); closePersonDetail();" class="px-3 py-1 text-red-600 hover:text-red-800 text-sm">删除</button>
-                        <button onclick="toggleEditMode()" id="editToggleBtn" class="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">编辑</button>
-                        <button onclick="closePersonDetail()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        <div id="personDetailModal" class="modal">
+            <div class="modal-overlay" onclick="closePersonDetail()"></div>
+            <div class="modal-content w-full max-w-4xl mx-4 p-0 overflow-hidden">
+                <!-- 渐变背景头部 -->
+                <div class="relative bg-gradient-to-br from-blue-500 to-blue-700 px-6 py-8 text-white">
+                    <!-- 操作按钮 -->
+                    <div class="absolute top-4 right-4 flex items-center gap-2">
+                        <button onclick="deletePerson(currentPersonData.id); closePersonDetail();" class="bg-white/20 hover:bg-white/30 text-white text-sm font-medium px-3 py-1.5 rounded-lg transition-colors">
+                            删除
+                        </button>
+                        <button onclick="toggleEditMode()" id="editToggleBtn" class="bg-white hover:bg-gray-100 text-blue-600 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors">
+                            编辑
+                        </button>
+                        <button class="w-8 h-8 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-lg transition-colors" onclick="closePersonDetail()">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
                     </div>
+
+                    <!-- 头像 -->
+                    <div class="flex items-center gap-4">
+                        <div class="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center text-3xl font-bold backdrop-blur-sm border-2 border-white/30">
+                            <span id="personAvatarInitial">?</span>
+                        </div>
+                        <div>
+                            <h2 id="personDetailName" class="text-2xl font-bold"></h2>
+                            <div id="personBasicInfo" class="text-blue-100 text-sm mt-1 flex items-center gap-3"></div>
+                        </div>
+                    </div>
+
+                    <!-- 标签 -->
+                    <div id="personTags" class="flex flex-wrap gap-2 mt-4"></div>
                 </div>
-                <div id="personDetailContent" class="p-4"></div>
+
+                <!-- 内容区域 -->
+                <div id="personDetailContent" class="p-6 max-h-[60vh] overflow-y-auto"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 z-[100] pointer-events-none opacity-0 transition-all duration-300 -translate-y-4">
+        <div class="flex items-center gap-3 px-5 py-3 rounded-2xl shadow-lg" id="toastContent">
+            <div id="toastIcon" class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"></div>
+            <div>
+                <div id="toastTitle" class="font-medium text-sm"></div>
+                <div id="toastMessage" class="text-xs opacity-80 mt-0.5"></div>
             </div>
         </div>
     </div>
@@ -374,16 +772,18 @@
                 return a.name.localeCompare(b.name, 'zh-CN');
             });
 
-            // 设置默认选中：优先从 localStorage 恢复，否则选第一个
+            // 设置默认选中：优先从 localStorage 恢复
             const savedId = localStorage.getItem('selectedPersonId');
-            if (savedId && persons.some(p => p.id === savedId)) {
+            if (savedId && savedId !== 'null' && persons.some(p => p.id === savedId)) {
                 selectedPersonId = savedId;
-            } else if (persons.length > 0) {
-                selectedPersonId = persons[0].id;
+            } else {
+                // 默认不选中任何成员，显示全部
+                selectedPersonId = null;
             }
 
             renderPersons();
             updatePersonSelect();
+            updateMemberCount(); // 更新快速操作区成员数量
             updateFilterSelects(); // Update filter dropdowns when visible
         }
 
@@ -417,48 +817,144 @@
         function renderPersons() {
             const container = document.getElementById('personsList');
             if (persons.length === 0) {
-                container.innerHTML = '<div class="p-4 text-gray-500 text-center">暂无成员</div>';
+                container.innerHTML = '<div class="text-gray-500 text-center py-8">暂无成员，点击"添加成员"创建</div>';
                 return;
             }
-            container.innerHTML = persons.map(p => `
-                <div class="p-4 hover:bg-gray-50 cursor-pointer flex justify-between items-center ${selectedPersonId === p.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''}"
-                     onclick="selectPersonAndLoadVisits('${p.id}')">
-                    <div class="flex-1">
-                        <div class="font-medium ${selectedPersonId === p.id ? 'text-blue-700' : ''}">${escapeHtml(p.name)}</div>
-                        <div class="text-sm text-gray-500">${formatRelationship(p.relationship)}</div>
-                    </div>
-                    <button onclick="event.stopPropagation(); showPersonDetail('${p.id}')" class="text-xs text-blue-500 hover:text-blue-700">
-                        查看详情
-                    </button>
-                </div>
-            `).join('');
+
+            let html = '<div class="flex gap-4">';
+            persons.forEach(function(p) {
+                const isSelected = selectedPersonId === p.id;
+                const bgColor = isSelected
+                    ? 'background: linear-gradient(135deg, #3b82f6, #1d4ed8);'
+                    : 'background-color: #f8fafc; border: 1px solid #e2e8f0;';
+                const textColor = isSelected ? 'text-white' : 'text-gray-900';
+                const subTextColor = isSelected ? 'text-blue-100' : 'text-gray-500';
+                const btnClass = isSelected ? 'text-white/80 hover:text-white' : 'text-blue-600 hover:text-blue-800';
+
+                html += '<div class="flex-shrink-0 min-w-[140px] p-4 rounded-xl cursor-pointer transition-all duration-200 hover:shadow-md" ' +
+                    'style="' + bgColor + '" onclick="selectPersonAndLoadVisits(\'' + p.id + '\')">' +
+                    '<div class="flex flex-col items-center text-center">' +
+                    '<div class="w-14 h-14 rounded-full flex items-center justify-center mb-3 ' + (isSelected ? 'bg-white/20' : 'bg-blue-100') + '">' +
+                    '<svg class="w-7 h-7 ' + (isSelected ? 'text-white' : 'text-blue-600') + '" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                    '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>' +
+                    '</svg></div>' +
+                    '<div class="font-semibold ' + textColor + ' mb-1">' + escapeHtml(p.name) + '</div>' +
+                    '<div class="text-xs ' + subTextColor + ' mb-2">' + formatRelationship(p.relationship) + '</div>' +
+                    '<button onclick="event.stopPropagation(); showPersonDetail(\'' + p.id + '\')" class="text-xs ' + btnClass + ' flex items-center gap-1">' +
+                    '<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">' +
+                    '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>' +
+                    '</svg>详情</button></div></div>';
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function renderVisitFilterTabs() {
+            const container = document.getElementById('visitFilterTabs');
+            let html = '<button onclick="filterVisitsByPerson(null)" class="px-3 py-1.5 rounded-full text-sm font-medium transition-colors ' +
+                (selectedPersonId === null ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200') + '">' +
+                '全部</button>';
+
+            persons.forEach(function(p) {
+                const isActive = selectedPersonId === p.id;
+                html += '<button onclick="filterVisitsByPerson(\'' + p.id + '\')" class="px-3 py-1.5 rounded-full text-sm font-medium transition-colors ' +
+                    (isActive ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200') + '">' +
+                    escapeHtml(p.name) + '</button>';
+            });
+
+            container.innerHTML = html;
+        }
+
+        function filterVisitsByPerson(id) {
+            if (id === 'null' || id === null) {
+                selectedPersonId = null;
+                localStorage.removeItem('selectedPersonId');
+            } else {
+                selectedPersonId = id;
+                localStorage.setItem('selectedPersonId', id);
+            }
+            renderPersons();
+            renderVisitFilterTabs();
+            loadVisits(selectedPersonId);
+            updateGreeting();
         }
 
         function renderVisits(visits) {
             const container = document.getElementById('visitsList');
+            renderVisitFilterTabs();
+
             if (visits.length === 0) {
                 container.innerHTML = '<div class="p-8 text-gray-500 text-center">暂无就诊记录</div>';
                 return;
             }
-            container.innerHTML = visits.map(v => `
-                <div class="p-4 hover:bg-gray-50 cursor-pointer" onclick="showVisitDetail('${v.id}')">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <div class="font-medium">${v.hospital || '未知医院'} - ${v.department || '未知科室'}</div>
-                            <div class="text-sm text-gray-500">${v.visit_date} · ${getPersonName(v.person_id)}</div>
-                        </div>
-                        ${v.diagnosis ? `<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">${v.diagnosis}</span>` : ''}
-                    </div>
-                    ${v.chief_complaint ? `<div class="text-sm text-gray-600 mt-2">主诉: ${v.chief_complaint}</div>` : ''}
-                    <div class="flex gap-2 mt-2">
-                        ${v.attachments.map(a => `
-                            <span class="text-xs ${a.has_extraction ? 'bg-green-100 text-green-800' : a.has_ocr ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-600'} px-2 py-1 rounded">
-                                📎 ${a.original_filename || '附件'}
-                            </span>
-                        `).join('')}
-                    </div>
-                </div>
-            `).join('');
+
+            // Sort visits by date (newest first)
+            visits.sort((a, b) => new Date(b.visit_date) - new Date(a.visit_date));
+
+            const today = new Date().toISOString().split('T')[0];
+
+            let html = '<div class="timeline-container"><div class="timeline-line"></div>';
+
+            visits.forEach(function(v) {
+                const isToday = v.visit_date === today;
+                const dotClass = isToday ? 'timeline-dot today' : 'timeline-dot';
+
+                // Calculate relative date
+                const visitDate = new Date(v.visit_date);
+                const todayDate = new Date(today);
+                const diffDays = Math.floor((todayDate - visitDate) / (1000 * 60 * 60 * 24));
+                let relativeDate = v.visit_date;
+                if (diffDays === 0) relativeDate = '今天';
+                else if (diffDays === 1) relativeDate = '昨天';
+                else if (diffDays <= 7) relativeDate = diffDays + ' 天前';
+                else if (diffDays <= 30) relativeDate = Math.floor(diffDays / 7) + ' 周前';
+                else if (diffDays <= 365) relativeDate = Math.floor(diffDays / 30) + ' 个月前';
+
+                // Determine attachment status
+                let attachmentStatus = '';
+                let hasExtraction = false;
+                let hasPending = false;
+
+                if (v.attachments && v.attachments.length > 0) {
+                    v.attachments.forEach(function(a) {
+                        if (a.has_extraction) hasExtraction = true;
+                        else if (!a.has_ocr) hasPending = true;
+                    });
+
+                    if (hasExtraction) {
+                        attachmentStatus = '<span class="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">已提取</span>';
+                    } else if (hasPending) {
+                        attachmentStatus = '<span class="bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5 rounded-full">待处理</span>';
+                    } else {
+                        attachmentStatus = '<span class="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">已识别</span>';
+                    }
+                }
+
+                html += '<div class="timeline-item">' +
+                    '<div class="' + dotClass + '"></div>' +
+                    '<div class="timeline-card" onclick="showVisitDetail(\'' + v.id + '\')">' +
+                    '<div class="flex justify-between items-start mb-2">' +
+                    '<div class="flex items-center gap-2">' +
+                    '<span class="text-sm font-medium text-gray-500">' + relativeDate + '</span>' +
+                    '<span class="text-xs text-gray-400">' + v.visit_date + '</span>' +
+                    (isToday ? '<span class="bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">今天</span>' : '') +
+                    '</div>' +
+                    attachmentStatus +
+                    '</div>' +
+                    '<div class="font-semibold text-gray-900 mb-1">' + (v.hospital || '未知医院') + '</div>' +
+                    '<div class="flex flex-wrap gap-2 text-sm text-gray-600">' +
+                    (v.department ? '<span class="flex items-center gap-1"><svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>' + escapeHtml(v.department) + '</span>' : '') +
+                    '<span class="flex items-center gap-1 text-gray-400">' +
+                    '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>' +
+                    getPersonName(v.person_id) + '</span>' +
+                    '</div>' +
+                    (v.diagnosis ? '<div class="mt-2 text-sm"><span class="text-gray-500">诊断：</span><span class="text-gray-800">' + escapeHtml(v.diagnosis) + '</span></div>' : '') +
+                    (v.attachments && v.attachments.length > 0 ? '<div class="mt-2 flex items-center gap-1 text-xs text-gray-400"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>' + v.attachments.length + ' 个附件</div>' : '') +
+                    '</div></div>';
+            });
+
+            html += '</div>';
+            container.innerHTML = html;
         }
 
         // ==================== Person Actions ====================
@@ -466,16 +962,48 @@
             selectedPersonId = id;
             localStorage.setItem('selectedPersonId', id);
             renderPersons();
+            renderVisitFilterTabs();
+            updateGreeting();
             loadVisits(id);
         }
 
         function showPersonModal() {
             document.getElementById('personModal').classList.add('active');
             document.getElementById('personForm').reset();
+            // Reset button groups to default values
+            resetButtonGroup('relationBtnGroup', 'self');
+            resetButtonGroup('genderBtnGroup', '');
         }
 
         function closePersonModal() {
             document.getElementById('personModal').classList.remove('active');
+        }
+
+        // Button group selection functions
+        function selectRelation(el, value) {
+            const buttons = el.parentElement.querySelectorAll('.btn-group-item');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            el.classList.add('active');
+            document.querySelector('input[name="relationship"]').value = value;
+        }
+
+        function selectGender(el, value) {
+            const buttons = el.parentElement.querySelectorAll('.btn-group-item');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            el.classList.add('active');
+            document.querySelector('input[name="gender"]').value = value;
+        }
+
+        function resetButtonGroup(groupId, defaultValue) {
+            const container = document.getElementById(groupId);
+            const buttons = container.querySelectorAll('.btn-group-item');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            // Find and activate the default button
+            buttons.forEach(btn => {
+                if (btn.onclick && btn.onclick.toString().includes(`'${defaultValue}'`)) {
+                    btn.classList.add('active');
+                }
+            });
         }
 
         // ==================== Person Detail Modal ====================
@@ -490,6 +1018,39 @@
             isEditMode = false;
             renderPersonDetail();
             document.getElementById('personDetailModal').classList.add('active');
+
+            // 加载成员就诊记录
+            loadPersonVisits(id);
+        }
+
+        // 加载成员就诊记录（最近5条）
+        async function loadPersonVisits(personId) {
+            try {
+                const visits = await fetchAPI(`/api/visits?person_id=${personId}`);
+                const container = document.getElementById('personVisitsList');
+                if (!container) return;
+
+                if (visits.length === 0) {
+                    container.innerHTML = '<p class="text-sm text-gray-400">暂无就诊记录</p>';
+                    return;
+                }
+
+                // 只显示最近5条
+                const recentVisits = visits.slice(0, 5);
+                container.innerHTML = recentVisits.map(v => `
+                    <div onclick="closePersonDetail(); showVisitDetail('${v.id}')" class="bg-white rounded-lg p-3 cursor-pointer hover:shadow-md transition-shadow border border-gray-100">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="font-medium text-gray-800">${v.hospital || '未知医院'}</div>
+                                <div class="text-sm text-gray-500">${v.department || ''} ${v.diagnosis ? '· ' + escapeHtml(v.diagnosis) : ''}</div>
+                            </div>
+                            <div class="text-xs text-gray-400">${v.visit_date || ''}</div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('Failed to load person visits:', e);
+            }
         }
 
         function closePersonDetail() {
@@ -505,11 +1066,38 @@
 
         function renderPersonDetail() {
             const p = currentPersonData;
-            const title = document.getElementById('personDetailTitle');
+            const nameEl = document.getElementById('personDetailName');
+            const avatarEl = document.getElementById('personAvatarInitial');
+            const basicInfoEl = document.getElementById('personBasicInfo');
+            const tagsEl = document.getElementById('personTags');
             const content = document.getElementById('personDetailContent');
             const editBtn = document.getElementById('editToggleBtn');
 
-            title.textContent = p.name;
+            // 设置姓名和头像
+            nameEl.textContent = p.name;
+            avatarEl.textContent = p.name ? p.name.charAt(0).toUpperCase() : '?';
+
+            // 设置基本信息
+            const infoParts = [];
+            infoParts.push(`<span class="bg-white/20 px-2 py-0.5 rounded text-xs">${formatRelationship(p.relationship)}</span>`);
+            if (p.gender) infoParts.push(`<span>${formatGender(p.gender)}</span>`);
+            if (p.birth_date) {
+                const age = calculateAge(p.birth_date);
+                if (age !== null) infoParts.push(`<span>${age}岁</span>`);
+            }
+            basicInfoEl.innerHTML = infoParts.join('<span class="text-white/40">·</span>');
+
+            // 设置标签
+            const tags = [];
+            if (p.blood_type) {
+                tags.push(`<span class="bg-white/20 text-white text-xs px-2.5 py-1 rounded-full">🩸 ${p.blood_type}</span>`);
+            }
+            if (p.body_measurements?.height && p.body_measurements?.weight) {
+                const bmi = (p.body_measurements.weight / Math.pow(p.body_measurements.height / 100, 2)).toFixed(1);
+                tags.push(`<span class="bg-white/20 text-white text-xs px-2.5 py-1 rounded-full">BMI ${bmi}</span>`);
+            }
+            tagsEl.innerHTML = tags.join('');
+
             editBtn.textContent = isEditMode ? '取消' : '编辑';
 
             if (isEditMode) {
@@ -519,36 +1107,33 @@
             }
         }
 
+        // 计算年龄
+        function calculateAge(birthDate) {
+            if (!birthDate) return null;
+            const birth = new Date(birthDate);
+            const today = new Date();
+            let age = today.getFullYear() - birth.getFullYear();
+            const monthDiff = today.getMonth() - birth.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+                age--;
+            }
+            return age >= 0 ? age : null;
+        }
+
         function renderDetailView(p) {
             return `
                 <div class="space-y-6">
-                    <!-- 基础信息卡片 -->
-                    <div class="bg-gray-50 rounded-lg p-4">
-                        <h4 class="font-medium text-gray-900 mb-3 flex items-center gap-2">
-                            <span class="text-lg">👤</span> 基础信息
-                        </h4>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            <div><span class="text-gray-500">关系：</span>${formatRelationship(p.relationship)}</div>
-                            <div><span class="text-gray-500">性别：</span>${formatGender(p.gender)}</div>
-                            <div><span class="text-gray-500">生日：</span>${p.birth_date || '-'}</div>
-                            <div><span class="text-gray-500">血型：</span>${p.blood_type || '-'}</div>
-                        </div>
-                        ${p.allergies && p.allergies.length > 0 ? `
-                            <div class="mt-3 pt-3 border-t border-gray-200">
-                                <span class="text-gray-500 text-sm">过敏史：</span>
-                                <div class="flex flex-wrap gap-2 mt-1">
-                                    ${p.allergies.map(a => `<span class="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">${escapeHtml(a)}</span>`).join('')}
-                                </div>
-                            </div>
-                        ` : ''}
-                        ${p.notes ? `<div class="mt-3 pt-3 border-t border-gray-200 text-sm"><span class="text-gray-500">备注：</span>${escapeHtml(p.notes)}</div>` : ''}
+                    <!-- 健康卡片区域 -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        ${renderChronicDiseasesCard(p.chronic_diseases)}
+                        ${renderAllergiesCard(p.allergies)}
+                        ${renderMedicationsCard(p.current_medications)}
                     </div>
 
                     <!-- 身体测量 -->
                     ${renderBodyMeasurements(p.body_measurements)}
 
                     <!-- 既往病史 -->
-                    ${renderChronicDiseases(p.chronic_diseases)}
                     ${renderPastSurgeries(p.past_surgeries)}
                     ${renderHospitalizations(p.hospitalizations)}
                     ${renderMajorIllnesses(p.major_illnesses)}
@@ -556,14 +1141,106 @@
                     <!-- 家族病史 -->
                     ${renderFamilyHistory(p.family_history)}
 
-                    <!-- 长期用药 -->
-                    ${renderCurrentMedications(p.current_medications)}
-
                     <!-- 生活习惯 -->
                     ${renderLifestyle(p.lifestyle)}
 
+                    <!-- 就诊历史 -->
+                    ${renderPersonVisitsSection(p.id)}
+
                     <!-- 空状态提示 -->
-                    ${isEmpty(p) ? '<div class="text-center text-gray-400 py-8">暂无健康信息，点击"编辑"添加</div>' : ''}
+                    ${isEmpty(p) ? '<div class="text-center text-gray-400 py-8 bg-gray-50 rounded-xl">暂无健康信息，点击"编辑"添加</div>' : ''}
+                </div>
+            `;
+        }
+
+        // 慢性病卡片（黄色背景）
+        function renderChronicDiseasesCard(diseases) {
+            const hasData = diseases && diseases.length > 0;
+            return `
+                <div class="bg-amber-50 rounded-xl p-4 border border-amber-100">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                            <span class="text-amber-600 text-lg">🏥</span>
+                        </div>
+                        <h4 class="font-medium text-amber-900">慢性病史</h4>
+                    </div>
+                    ${hasData ? `
+                        <div class="space-y-2">
+                            ${diseases.map(d => `
+                                <div class="text-sm">
+                                    <span class="font-medium text-gray-800">${escapeHtml(d.name)}</span>
+                                    ${d.status ? `<span class="ml-2 text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded">${formatDiseaseStatus(d.status)}</span>` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : '<p class="text-sm text-amber-600/60">暂无记录</p>'}
+                </div>
+            `;
+        }
+
+        // 过敏卡片（红色背景）
+        function renderAllergiesCard(allergies) {
+            const hasData = allergies && allergies.length > 0;
+            return `
+                <div class="bg-red-50 rounded-xl p-4 border border-red-100">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+                            <span class="text-red-600 text-lg">⚠️</span>
+                        </div>
+                        <h4 class="font-medium text-red-900">过敏史</h4>
+                    </div>
+                    ${hasData ? `
+                        <div class="flex flex-wrap gap-2">
+                            ${allergies.map(a => `<span class="bg-red-200 text-red-800 text-xs px-2.5 py-1 rounded-full">${escapeHtml(a)}</span>`).join('')}
+                        </div>
+                    ` : '<p class="text-sm text-red-600/60">暂无记录</p>'}
+                </div>
+            `;
+        }
+
+        // 长期用药卡片（蓝色背景）
+        function renderMedicationsCard(medications) {
+            const hasData = medications && medications.length > 0;
+            return `
+                <div class="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <span class="text-blue-600 text-lg">💊</span>
+                        </div>
+                        <h4 class="font-medium text-blue-900">长期用药</h4>
+                    </div>
+                    ${hasData ? `
+                        <div class="space-y-2">
+                            ${medications.map(m => `
+                                <div class="text-sm">
+                                    <span class="font-medium text-gray-800">${escapeHtml(m.name)}</span>
+                                    ${m.dosage ? `<span class="text-gray-500 ml-2">${escapeHtml(m.dosage)}</span>` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : '<p class="text-sm text-blue-600/60">暂无记录</p>'}
+                </div>
+            `;
+        }
+
+        // 就诊历史区域
+        function renderPersonVisitsSection(personId) {
+            return `
+                <div class="bg-gray-50 rounded-xl p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center">
+                                <span class="text-gray-600 text-lg">📋</span>
+                            </div>
+                            <h4 class="font-medium text-gray-900">就诊历史</h4>
+                        </div>
+                        <button onclick="closePersonDetail(); loadVisits('${personId}');" class="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                            查看全部 →
+                        </button>
+                    </div>
+                    <div id="personVisitsList" class="space-y-3">
+                        <p class="text-sm text-gray-400">加载中...</p>
+                    </div>
                 </div>
             `;
         }
@@ -916,10 +1593,12 @@
             await fetchAPI('/api/persons', { method: 'POST', body: JSON.stringify(data) });
             closePersonModal();
             loadPersons();
+            showToast('添加成功', `成员 ${data.name} 已添加`, 'success');
         });
 
         async function deletePerson(id) {
             if (!confirm('确定删除该成员？')) return;
+            const personName = getPersonName(id);
             await fetchAPI(`/api/persons/${id}`, { method: 'DELETE' });
 
             // 如果删除的是当前选中的成员，清除选中状态
@@ -932,6 +1611,7 @@
             if (selectedPersonId) {
                 loadVisits(selectedPersonId);
             }
+            showToast('删除成功', `成员 ${personName} 已删除`, 'info');
         }
 
         // ==================== Visit Actions ====================
@@ -1108,8 +1788,9 @@
                 await fetchAPI('/api/visits', { method: 'POST', body: JSON.stringify(data) });
                 closeVisitModal();
                 loadVisits();
+                showToast('保存成功', '就诊记录已创建', 'success');
             } catch (err) {
-                alert('保存失败: ' + err.message);
+                showToast('保存失败', err.message, 'error');
             }
         });
 
@@ -1129,8 +1810,25 @@
         function renderVisitDetail() {
             const visit = currentVisitData;
             const editBtn = document.getElementById('visitEditBtn');
+            const hospitalEl = document.getElementById('visitDetailHospital');
+            const metaEl = document.getElementById('visitDetailMeta');
+            const infoEl = document.getElementById('visitDetailInfo');
 
-            document.getElementById('visitDetailTitle').textContent = (visit.hospital || '就诊记录') + ' - ' + visit.visit_date;
+            // 设置头部信息
+            hospitalEl.textContent = visit.hospital || '就诊记录';
+
+            // 科室和医生
+            const metaParts = [];
+            if (visit.department) metaParts.push(`<span class="bg-white/20 px-2 py-0.5 rounded">${escapeHtml(visit.department)}</span>`);
+            if (visit.doctor) metaParts.push(`<span>医生: ${escapeHtml(visit.doctor)}</span>`);
+            metaEl.innerHTML = metaParts.join('') || '<span class="text-white/60">暂无科室信息</span>';
+
+            // 患者和日期
+            infoEl.innerHTML = `
+                <span class="bg-white/20 px-2 py-0.5 rounded">${getPersonName(visit.person_id)}</span>
+                <span class="text-blue-100">${visit.visit_date}</span>
+            `;
+
             editBtn.textContent = isVisitEditMode ? '取消' : '编辑';
 
             if (isVisitEditMode) {
@@ -1141,49 +1839,107 @@
         }
 
         function renderVisitDetailView(visit) {
-            var html = '<div class="space-y-4">' +
-                '<div class="grid grid-cols-2 gap-4">' +
-                '<div><span class="text-gray-500">患者:</span> ' + getPersonName(visit.person_id) + '</div>' +
-                '<div><span class="text-gray-500">科室:</span> ' + (visit.department || '-') + '</div>' +
-                '<div><span class="text-gray-500">医生:</span> ' + (visit.doctor || '-') + '</div>' +
-                '<div><span class="text-gray-500">日期:</span> ' + visit.visit_date + '</div>' +
-                '</div>';
+            let html = '<div class="space-y-6">';
 
-            if (visit.chief_complaint) html += '<div><span class="text-gray-500">主诉:</span> ' + escapeHtml(visit.chief_complaint) + '</div>';
-            if (visit.diagnosis) html += '<div><span class="text-gray-500">诊断:</span> <span class="font-medium">' + escapeHtml(visit.diagnosis) + '</span></div>';
-            if (visit.summary) html += '<div><span class="text-gray-500">摘要:</span> ' + escapeHtml(visit.summary) + '</div>';
-            if (visit.treatment) html += '<div><span class="text-gray-500">治疗:</span> ' + escapeHtml(visit.treatment) + '</div>';
-            if (visit.notes) html += '<div><span class="text-gray-500">备注:</span> ' + escapeHtml(visit.notes) + '</div>';
-
-            html += '<div class="border-t pt-4">' +
-                '<div class="flex justify-between items-center mb-3">' +
-                '<h4 class="font-medium">附件 (' + visit.attachments.length + ')</h4>' +
-                '<button onclick="showUploadModal(\'' + visit.id + '\')" class="text-blue-600 hover:text-blue-800 text-sm">+ 上传</button>' +
-                '</div><div class="space-y-2">';
-
-            visit.attachments.forEach(function(a) {
-                var previewable = isPreviewable(a.mime_type);
-                html += '<div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">' +
-                    '<div class="flex items-center gap-3 cursor-pointer" onclick="' + (previewable ? 'openPreview(\'' + a.file_path + '\', \'' + (a.original_filename || '附件') + '\', \'' + a.mime_type + '\')' : '') + '">' +
-                    '<span class="text-2xl">' + getFileIcon(a.mime_type) + '</span>' +
-                    '<div>' +
-                    '<div class="font-medium ' + (previewable ? 'text-blue-600 hover:underline' : '') + '">' + (a.original_filename || '附件') + '</div>' +
-                    '<div class="text-sm text-gray-500">' + formatBytes(a.file_size) + '</div>' +
-                    '</div></div>' +
-                    '<div class="flex gap-2">' +
-                    (a.has_extraction ? '<button onclick="viewExtraction(\'' + a.id + '\')" class="px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm hover:bg-blue-200">查看</button>' : '') +
-                    '<a href="/data/' + a.file_path + '" target="_blank" class="px-3 py-1 bg-gray-100 text-gray-800 rounded text-sm hover:bg-gray-200">文件</a>' +
-                    '</div></div>';
-            });
-
-            if (visit.attachments.length === 0) {
-                html += '<div class="text-gray-500 text-center py-4">暂无附件</div>';
+            // 诊断卡片
+            if (visit.diagnosis) {
+                html += `
+                    <div class="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <span class="text-blue-600 text-lg">🔍</span>
+                            </div>
+                            <h4 class="font-medium text-blue-900">诊断</h4>
+                        </div>
+                        <p class="text-gray-800 font-medium">${escapeHtml(visit.diagnosis)}</p>
+                    </div>
+                `;
             }
 
-            html += '</div></div>' +
-                '<div class="flex justify-end pt-4 border-t">' +
-                '<button onclick="deleteVisit(\'' + visit.id + '\')" class="px-4 py-2 text-red-600 hover:text-red-800">删除记录</button>' +
-                '</div></div>';
+            // 主诉/治疗双列卡片
+            if (visit.chief_complaint || visit.treatment) {
+                html += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+                if (visit.chief_complaint) {
+                    html += `
+                        <div class="bg-gray-50 rounded-xl p-4">
+                            <h4 class="font-medium text-gray-700 mb-2">主诉</h4>
+                            <p class="text-gray-600 text-sm">${escapeHtml(visit.chief_complaint)}</p>
+                        </div>
+                    `;
+                }
+                if (visit.treatment) {
+                    html += `
+                        <div class="bg-gray-50 rounded-xl p-4">
+                            <h4 class="font-medium text-gray-700 mb-2">治疗方案</h4>
+                            <p class="text-gray-600 text-sm">${escapeHtml(visit.treatment)}</p>
+                        </div>
+                    `;
+                }
+                html += '</div>';
+            }
+
+            // 摘要和备注
+            if (visit.summary) {
+                html += `
+                    <div class="bg-gray-50 rounded-xl p-4">
+                        <h4 class="font-medium text-gray-700 mb-2">摘要</h4>
+                        <p class="text-gray-600 text-sm">${escapeHtml(visit.summary)}</p>
+                    </div>
+                `;
+            }
+            if (visit.notes) {
+                html += `
+                    <div class="bg-gray-50 rounded-xl p-4">
+                        <h4 class="font-medium text-gray-700 mb-2">备注</h4>
+                        <p class="text-gray-600 text-sm">${escapeHtml(visit.notes)}</p>
+                    </div>
+                `;
+            }
+
+            // 附件区域
+            html += `
+                <div class="bg-gray-50 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center">
+                                <span class="text-gray-600 text-lg">📎</span>
+                            </div>
+                            <h4 class="font-medium text-gray-900">附件 (${visit.attachments.length})</h4>
+                        </div>
+                        <button onclick="showUploadModal('${visit.id}')" class="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                            + 上传
+                        </button>
+                    </div>
+            `;
+
+            if (visit.attachments.length > 0) {
+                html += '<div class="grid grid-cols-2 md:grid-cols-3 gap-3">';
+                visit.attachments.forEach(function(a) {
+                    const previewable = isPreviewable(a.mime_type);
+                    const isImage = a.mime_type && a.mime_type.startsWith('image/');
+                    const safeFilename = escapeHtml(a.original_filename || '附件');
+                    html += `
+                        <div class="bg-white rounded-lg p-3 border border-gray-200 cursor-pointer hover:shadow-md transition-shadow" onclick="${previewable ? "openPreview('" + a.file_path + "', '" + safeFilename + "', '" + a.mime_type + "')" : ''}">
+                            ${isImage ? `<div class="h-20 bg-gray-100 rounded mb-2 overflow-hidden"><img src="/data/${a.file_path}" class="w-full h-full object-cover"></div>` : `<div class="h-20 bg-gray-100 rounded mb-2 flex items-center justify-center text-3xl">${getFileIcon(a.mime_type)}</div>`}
+                            <div class="text-sm font-medium text-gray-800 truncate">${safeFilename}</div>
+                            <div class="text-xs text-gray-400">${formatBytes(a.file_size)}</div>
+                            ${a.has_extraction ? '<div class="mt-1"><span class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">已提取</span></div>' : ''}
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            } else {
+                html += '<p class="text-sm text-gray-400 text-center py-4">暂无附件</p>';
+            }
+
+            html += '</div>';
+
+            // 删除按钮
+            html += `
+                <div class="flex justify-end pt-4 border-t">
+                    <button onclick="deleteVisit('${visit.id}')" class="text-red-600 hover:text-red-800 text-sm font-medium">删除记录</button>
+                </div>
+            </div>`;
 
             return html;
         }
@@ -1260,8 +2016,10 @@
             if (!confirm('确定删除该就诊记录？')) return;
             try {
                 await fetchAPI(`/api/visits/${id}`, { method: 'DELETE' });
+                showToast('删除成功', '就诊记录已删除', 'info');
             } catch (e) {
                 console.error('删除失败:', e);
+                showToast('删除失败', e.message, 'error');
             }
             closeVisitDetail();
             loadVisits();
@@ -1532,6 +2290,52 @@
             if (e.key === 'Enter') search();
         });
 
+        // ==================== Greeting ====================
+        function updateGreeting() {
+            const hour = new Date().getHours();
+            let greeting = '晚上好';
+            let tip = '早点休息，保持良好的作息习惯';
+
+            if (hour >= 5 && hour < 12) {
+                greeting = '早上好';
+                tip = '新的一天，记得按时吃药';
+            } else if (hour >= 12 && hour < 18) {
+                greeting = '下午好';
+                tip = '今天也要注意身体健康哦';
+            } else if (hour >= 18 && hour < 22) {
+                greeting = '晚上好';
+                tip = '适当运动，保持健康生活方式';
+            }
+
+            document.getElementById('greetingTime').textContent = greeting;
+            document.getElementById('greetingTip').textContent = tip;
+
+            // 获取当前选中成员的名字
+            let userName = '用户';
+            if (selectedPersonId) {
+                const person = persons.find(p => p.id === selectedPersonId);
+                if (person) {
+                    userName = person.name;
+                }
+            }
+            document.getElementById('greetingName').textContent = userName;
+        }
+
+        // ==================== Quick Actions ====================
+        function focusSearch() {
+            const input = document.getElementById('searchInput');
+            input.focus();
+            // 展开筛选面板
+            const panel = document.getElementById('filtersPanel');
+            if (panel.classList.contains('hidden')) {
+                toggleFilters();
+            }
+        }
+
+        function updateMemberCount() {
+            document.getElementById('memberCount').textContent = persons.length;
+        }
+
         // ==================== Helpers ====================
         function getPersonName(id) {
             const p = persons.find(p => p.id === id);
@@ -1568,6 +2372,68 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // ==================== Toast Notification ====================
+        function showToast(title, message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastContent = document.getElementById('toastContent');
+            const toastIcon = document.getElementById('toastIcon');
+            const toastTitle = document.getElementById('toastTitle');
+            const toastMessage = document.getElementById('toastMessage');
+
+            // 设置图标和颜色
+            const config = {
+                success: {
+                    icon: '✓',
+                    bgClass: 'bg-green-500',
+                    contentBg: 'bg-white',
+                    titleColor: 'text-gray-800',
+                    messageColor: 'text-gray-500'
+                },
+                error: {
+                    icon: '✕',
+                    bgClass: 'bg-red-500',
+                    contentBg: 'bg-white',
+                    titleColor: 'text-gray-800',
+                    messageColor: 'text-gray-500'
+                },
+                warning: {
+                    icon: '⚠',
+                    bgClass: 'bg-amber-500',
+                    contentBg: 'bg-white',
+                    titleColor: 'text-gray-800',
+                    messageColor: 'text-gray-500'
+                },
+                info: {
+                    icon: 'ℹ',
+                    bgClass: 'bg-blue-500',
+                    contentBg: 'bg-white',
+                    titleColor: 'text-gray-800',
+                    messageColor: 'text-gray-500'
+                }
+            };
+
+            const c = config[type] || config.success;
+
+            toastIcon.className = `w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold ${c.bgClass}`;
+            toastIcon.textContent = c.icon;
+            toastContent.className = `flex items-center gap-3 px-5 py-3 rounded-2xl shadow-lg ${c.contentBg}`;
+            toastTitle.className = `font-medium text-sm ${c.titleColor}`;
+            toastTitle.textContent = title;
+            toastMessage.className = `text-xs mt-0.5 ${c.messageColor}`;
+            toastMessage.textContent = message;
+
+            // 显示
+            toast.classList.remove('opacity-0', '-translate-y-4');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            // 3秒后自动隐藏
+            clearTimeout(window.toastTimeout);
+            window.toastTimeout = setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', '-translate-y-4');
+            }, 3000);
         }
 
         function formatBytes(bytes) {
@@ -1688,8 +2554,19 @@
         // ==================== Init ====================
         async function init() {
             await loadPersons();
-            if (selectedPersonId) {
-                loadVisits(selectedPersonId);
+            updateGreeting();
+            renderVisitFilterTabs();
+            // Load visits - either for selected person or all
+            loadVisits(selectedPersonId);
+
+            // 自动触发文件选择后的识别
+            const quickImportFiles = document.getElementById('quickImportFiles');
+            if (quickImportFiles) {
+                quickImportFiles.addEventListener('change', function(e) {
+                    if (e.target.files && e.target.files.length > 0) {
+                        quickImportFromForm();
+                    }
+                });
             }
         }
         init();
