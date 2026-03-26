@@ -1601,16 +1601,14 @@
             const personName = getPersonName(id);
             await fetchAPI(`/api/persons/${id}`, { method: 'DELETE' });
 
-            // 如果删除的是当前选中的成员，清除选中状态
+            // 如果删除的是当前选中的成员，清除选中状态并清空就诊记录列表
             if (selectedPersonId === id) {
                 selectedPersonId = null;
                 localStorage.removeItem('selectedPersonId');
+                renderVisits([]); // 清空就诊记录列表
             }
 
             loadPersons();
-            if (selectedPersonId) {
-                loadVisits(selectedPersonId);
-            }
             showToast('删除成功', `成员 ${personName} 已删除`, 'info');
         }
 

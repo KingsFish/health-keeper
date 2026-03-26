@@ -282,3 +282,57 @@ async fn test_not_found_errors() {
 
     storage.close().await;
 }
+
+#[tokio::test]
+async fn test_cascade_delete_person_with_visits() {
+    let storage = create_test_storage().await;
+
+    // Create person
+    let person = Person::new("张三".to_string(), Relationship::Self_);
+    storage.create_person(&person).await.expect("Failed to create person");
+
+    // Create visits for the person
+    let visit_date = NaiveDate::from_ymd_opt(2026, 3, 22).expect("Invalid date");
+    let visit1 = Visit::new(person.id.clone(), visit_date)
+        .with_hospital("医院A".to_string());
+    let visit2 = Visit::new(person.id.clone(), visit_date)
+        .with_hospital("医院B".to_string());
+    storage.create_visit(&visit1).await.expect("Failed to create visit1");
+    storage.create_visit(&visit2).await.expect("Failed to create visit2");
+
+    // Create attachments for visit1
+    let attachment = Attachment::new(
+        visit1.id.clone(),
+        "/data/test.jpg".to_string(),
+        AttachmentType::MedicalRecord,
+    );
+    storage.create_attachment(&attachment).await.expect("Failed to create attachment");
+
+    // Verify visits exist
+    let visits = storage.list_visits(Some(&person.id)).await.expect("Failed to list visits");
+    assert_eq!(visits.len(), 2);
+
+    // Delete person
+    storage.delete_person(&person.id).await.expect("Failed to delete person");
+
+    // Verify person is deleted
+    let result = storage.get_person(&person.id).await;
+    assert!(result.is_err());
+
+    // Verify visits are cascade deleted
+    let visits = storage.list_visits(Some(&person.id)).await.expect("Failed to list visits");
+    assert_eq!(visits.len(), 0, "Visits should be cascade deleted when person is deleted");
+
+    // Verify individual visits are gone
+    let result = storage.get_visit(&visit1.id).await;
+    assert!(result.is_err(), "Visit1 should be deleted");
+
+    let result = storage.get_visit(&visit2.id).await;
+    assert!(result.is_err(), "Visit2 should be deleted");
+
+    // Verify attachments are cascade deleted
+    let result = storage.get_attachment(&attachment.id).await;
+    assert!(result.is_err(), "Attachment should be cascade deleted");
+
+    storage.close().await;
+}
